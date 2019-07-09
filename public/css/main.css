@@ -10,7 +10,7 @@
         -ms-user-select: none; /* Internet Explorer/Edge */
             user-select: none; /* Non-prefixed version, currently
                                   supported by Chrome and Opera */
-	transition: none !important;
+/* 	transition: none !important; */
 }
 
 html {
@@ -18,8 +18,15 @@ html {
 	font-family: sans-serif;
 }
 
-.hidden {
+:not(body).hidden,
+body.hidden #panel,
+body.hidden #menu {
 	transform: translateY(50px);
+	filter: opacity(0%) blur(5px);
+	pointer-events: none;
+}
+body.hidden #settings {
+	transform: translateY(calc(-100% - 50px));
 	filter: opacity(0%) blur(5px);
 	pointer-events: none;
 }
@@ -141,6 +148,90 @@ html {
 .option:active {
 	filter: drop-shadow(0 0 8px #000);
 	transition: filter .2s;
+}
+
+
+#settings {
+	position: absolute;
+	padding: 8px;
+	color: white;
+	background: #2229;
+	transform: translateY(-100%);
+	transition: .3s;
+}
+#settings:hover {
+	transform: translateY(0);
+}
+#settings:after {
+	content: "";
+	display: block;
+	position: absolute;
+	top: 100%;
+	left: 0;
+	width: 48px;
+	height: 48px;
+	background: linear-gradient(to bottom,
+		#2229, #0009, transparent
+	);
+}
+#settings > .section {
+	padding: 8px;
+	border: 1px solid white;
+}
+#settings label {
+	display: block;
+	margin: 8px 0;
+}
+#settings label p,
+#settings .label,
+#settings .button{
+	text-transform: capitalize;
+}
+#settings .button {
+	position: relative;
+	width: 200px;
+	height: 24px;
+	line-height: 24px;
+	text-align: center;
+	background: linear-gradient(to right,
+		#0008, #0003 20%, #0003 80%, #0008
+	);
+}
+#settings .button:after {
+	content: "";
+	position: absolute;
+	left: 0;
+	top: 0;
+	height: 24px;
+	width: 100%;
+	background: linear-gradient(to right,
+		#FFF9, white 200px
+	);
+	filter: opacity(0);
+	transition: .3s;
+}
+#settings .button:hover:after {
+	filter: opacity(100);
+	transition: .1s;
+}
+#settings .range {
+	position: relative;
+	width: 200px;
+	height: 24px;
+	background: linear-gradient(to right,
+		#0008, #0003 20%, #0003 80%, #0008
+	);
+}
+#settings .range:after {
+	content: "";
+	position: absolute;
+	left: 0;
+	top: 0;
+	height: 24px;
+	width: calc(var(--x) * 200px);
+	background: linear-gradient(to right,
+		#FFF9, white 200px
+	);
 }
 
 

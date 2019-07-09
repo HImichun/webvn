@@ -2,6 +2,9 @@ import { state, characters, images, sprites, elements, channels, rootDir, variab
 import * as writer from "./writer.js"
 import crel from "./crel.js";
 import { Channel } from "./channel.js";
+import { autosave } from "./save.js";
+
+const ALL_BUT_SETTINGS = {include:null, exclude:"#settings, #save"}
 
 export function makeCommand(line: string) : Command {
 
@@ -105,6 +108,8 @@ export function executeCommand(type: CommandType, args: CommandArg[]) : Promise<
 	{
 		// say
 		case CommandType.say: {
+			autosave()
+
 			const [
 				shortName, ...what
 			] = args as string[]
@@ -123,18 +128,15 @@ export function executeCommand(type: CommandType, args: CommandArg[]) : Promise<
 			return new Promise(resolve => {
 				const originalDelay = config.textDelay
 
-				const skipEvent = ()=>{
-					config.textDelay = 5
-				}
-				const once = {once: true}
+				waitForClick(ALL_BUT_SETTINGS)
+					.then(() => config.textDelay = 5)
 
 				writer.write(what.join(" "))
-				.then(() => {
-					config.textDelay = originalDelay
-					document.removeEventListener("click", skipEvent, once as EventListenerOptions)
-					document.addEventListener("click", ()=>resolve(), once)
-				})
-				document.addEventListener("click", skipEvent, once)
+					.then(() => {
+						config.textDelay = originalDelay
+						return waitForClick(ALL_BUT_SETTINGS)
+					})
+					.then(() => resolve())
 			})
 		}
 
@@ -147,7 +149,19 @@ export function executeCommand(type: CommandType, args: CommandArg[]) : Promise<
 			elements.panel.classList.remove("hidden")
 			writer.append(what.join(" "))
 
-			break
+			return new Promise(resolve => {
+				const originalDelay = config.textDelay
+
+				waitForClick(ALL_BUT_SETTINGS)
+					.then(() => config.textDelay = 5)
+
+				writer.write(what.join(" "))
+					.then(() => {
+						config.textDelay = originalDelay
+						return waitForClick(ALL_BUT_SETTINGS)
+					})
+					.then(() => resolve())
+			})
 		}
 
 		// global
@@ -241,21 +255,15 @@ export function executeCommand(type: CommandType, args: CommandArg[]) : Promise<
 		// image
 		case CommandType.image: {
 			const [
-				imgs
-			] = args as [Set<string[]>]
+				name, relSrc
+			] = args as [string, string]
 
 			return new Promise(async resolve => {
-				for (const [name, relSrc] of imgs.values()) {
-					const src = rootDir + relSrc
-					images.set(name, src)
+				images.set(name, relSrc)
 
-					await new Promise(r => {
-						const preloadEl = new Image()
-						preloadEl.src = src
-						preloadEl.onload = () => r()
-					})
-				}
-				resolve()
+				const preloadEl = new Image()
+				preloadEl.src = rootDir + relSrc
+				preloadEl.onload = () => resolve()
 			})
 		}
 
@@ -267,23 +275,27 @@ export function executeCommand(type: CommandType, args: CommandArg[]) : Promise<
 
 			const element = new Image()
 			element.className = "sprite"
+			element.ondragstart = e => e.preventDefault()
 
 			return new Promise(async resolve => {
 				let variantMap: Map<string,string> = new Map()
 				for (const [name,relSrc] of variants.values()) {
-					const src = rootDir + relSrc
-					variantMap.set(name, src)
+					variantMap.set(name, relSrc)
 
 					await new Promise(r => {
 						const preloadEl = new Image()
-						preloadEl.src = src
+						preloadEl.src = rootDir + relSrc
 						preloadEl.onloadend = () => r()
 					})
 				}
 
 				const sprite: Sprite = {
 					variants: variantMap,
-					element: element
+					element: element,
+					shown: false,
+					position: 0,
+					rotated: false,
+					variant: "normal"
 				}
 
 				sprites.set(name, sprite)
@@ -299,7 +311,7 @@ export function executeCommand(type: CommandType, args: CommandArg[]) : Promise<
 
 			let soundMap: Map<string,string> = new Map()
 			sounds.forEach(sound =>
-				soundMap.set(sound[0], rootDir+sound[1]))
+				soundMap.set(sound[0], sound[1]))
 
 			const loop =
 				options.includes("loop") ? true :
@@ -313,6 +325,29 @@ export function executeCommand(type: CommandType, args: CommandArg[]) : Promise<
 			const channel: Channel = new Channel(soundMap, {loop,fade})
 
 			channels.set(name, channel)
+
+			const rangeEl = addToSettings("sound", name, ControlType.range)
+			const cookieVol = getCookie("channel-"+name)
+			if (cookieVol) {
+				rangeEl.style.setProperty("--x", cookieVol)
+				channel.setVolume((+cookieVol)**2)
+			}
+			else {
+				rangeEl.style.setProperty("--x", "1")
+				setCookie("channel-"+name, "1")
+			}
+			const click = (e:MouseEvent) => {
+				const volume = e.layerX / rangeEl.clientWidth
+				rangeEl.style.setProperty("--x", volume.toString())
+				channel.setVolume(volume**2)
+				setCookie("channel-"+name, volume.toString())
+			}
+			rangeEl.onclick = click
+			rangeEl.onmousemove = e => {
+				if (e.buttons & 1)
+					click(e)
+			}
+
 			break
 		}
 
@@ -324,13 +359,19 @@ export function executeCommand(type: CommandType, args: CommandArg[]) : Promise<
 
 			const backgroundEl = crel("div", "background").el
 
-			if (name == "color")
+			if (name == "color") {
 				backgroundEl.style.backgroundColor = colorName
-			else
+				state.background = colorName
+			}
+			else {
 				backgroundEl.style.backgroundImage =
 					`url(${
+						rootDir
+					}${
 						images.get(name)
 					})`
+				state.background = name
+			}
 
 			elements.backgrounds.insertAdjacentElement("afterbegin", backgroundEl)
 
@@ -364,29 +405,30 @@ export function executeCommand(type: CommandType, args: CommandArg[]) : Promise<
 
 			subjects.forEach(([name, ...positions]) => {
 				const sprite = sprites.get(name)
+				sprite.shown = true
 				sprite.element.className = "sprite"
 
 				let p
 				if (positions.includes("left"))
-					sprite.element.style.setProperty("--pos", ".2")
+					setSpritePos(sprite, .2)
 				else if (positions.includes("right"))
-					sprite.element.style.setProperty("--pos", ".8")
+					setSpritePos(sprite, .8)
 				else if (p = positions.find(pos => !isNaN(+pos)))
-					sprite.element.style.setProperty("--pos", p)
+					setSpritePos(sprite, p)
 				else
-					sprite.element.style.setProperty("--pos", ".5")
+					setSpritePos(sprite, .5)
 
 				if (positions.includes("rotated"))
-					sprite.element.classList.add("rotated")
+					setSpriteRot(sprite, true)
 
 				const foundVariant = positions.some(position => {
 					if (sprite.variants.has(position)) {
-						setSpriteVariant(sprite, position)
+						setSpriteVar(sprite, position)
 						return true
 					}
 				})
 				if (!foundVariant)
-					setSpriteVariant(sprite, "normal")
+					setSpriteVar(sprite, "normal")
 
 				elements.sprites.appendChild(sprite.element)
 				sprite.element.animate([
@@ -416,22 +458,22 @@ export function executeCommand(type: CommandType, args: CommandArg[]) : Promise<
 
 				let p
 				if (positions.includes("left"))
-					sprite.element.style.setProperty("--pos", ".2")
+					setSpritePos(sprite, .2)
 				else if (positions.includes("right"))
-					sprite.element.style.setProperty("--pos", ".8")
+					setSpritePos(sprite, .8)
 				else if (p = positions.find(pos => !isNaN(+pos)))
-					sprite.element.style.setProperty("--pos", p)
+					setSpritePos(sprite, p)
 				else if (positions.includes("center"))
-					sprite.element.style.setProperty("--pos", ".5")
+					setSpritePos(sprite, .5)
 
 				if (positions.includes("rotated"))
-					sprite.element.classList.add("rotated")
+					setSpriteRot(sprite, true)
 				else if (positions.includes("not-rotated"))
-					sprite.element.classList.remove("rotated")
+					setSpriteRot(sprite, false)
 
 				positions.some(position => {
 					if (sprite.variants.has(position)) {
-						setSpriteVariant(sprite, position)
+						setSpriteVar(sprite, position)
 						return true
 					}
 				})
@@ -455,7 +497,7 @@ export function executeCommand(type: CommandType, args: CommandArg[]) : Promise<
 
 			subjects.forEach(([name, variant]) => {
 				const sprite = sprites.get(name)
-				setSpriteVariant(sprite, variant)
+				setSpriteVar(sprite, variant)
 			})
 
 			return new Promise(r => setTimeout(()=>r(), 150))
@@ -474,6 +516,9 @@ export function executeCommand(type: CommandType, args: CommandArg[]) : Promise<
 
 			names.forEach(name => {
 				const sprite = sprites.get(name)
+
+				sprite.shown = false
+
 				sprite.element.animate([
 					{filter: "opacity(100%) blur(0)"},
 					{filter: "opacity(0%) blur(5px)"}
@@ -486,12 +531,17 @@ export function executeCommand(type: CommandType, args: CommandArg[]) : Promise<
 
 		// clear
 		case CommandType.clear: {
-			Array.from(elements.sprites.children).forEach(spriteEl => {
-				spriteEl.animate([
+			sprites.forEach(sprite => {
+				if (!sprite.shown)
+					return
+
+				sprite.shown = false
+
+				sprite.element.animate([
 					{filter: "opacity(100%) blur(0)"},
 					{filter: "opacity(0%) blur(5px)"}
 				], {duration:600})
-				.finished.then(() => spriteEl.remove())
+				.finished.then(() => sprite.element.remove())
 			})
 
 			return new Promise(r => setTimeout(()=>r(), 350))
@@ -551,12 +601,17 @@ export function executeCommand(type: CommandType, args: CommandArg[]) : Promise<
 			while (elements.menu.lastElementChild)
 				elements.menu.lastElementChild.remove()
 
-			let menuBlock: Block
-			for (const childBlock of state.block.children)
-				if (childBlock.startLine == state.line) {
-					menuBlock = childBlock
-					break
-				}
+			let menuBlock: Block = state.block
+			if (menuBlock.type != BlockType.menu)
+				for (const childBlock of state.block.children)
+					if (childBlock.startLine == state.line) {
+						menuBlock = childBlock
+						break
+					}
+
+			state.block = menuBlock
+
+			const optionBlocks = menuBlock.children
 
 			return new Promise(resolve => {
 				const click = (block: Block) => {
@@ -564,10 +619,24 @@ export function executeCommand(type: CommandType, args: CommandArg[]) : Promise<
 					const line = block.startLine+1
 					state.line = line
 					state.block = block
+					document.onkeydown = null
 					resolve(0b1)
 				}
 
-				for (const optionBlock of menuBlock.children) {
+				document.onkeydown = e => {
+					let key = e.key
+					if ("1234567890".includes(key)) {
+						if (key == "0")
+							key = "10"
+						const i = +key-1
+						if (i < optionBlocks.length)
+							click(optionBlocks[i])
+					}
+				}
+
+				for (const i in optionBlocks) {
+					const optionBlock = optionBlocks[i]
+					console.log(i, optionBlock)
 					const line = optionBlock.startLine
 					const optionCommand = state.getChapter().commands[line]
 					const title = optionCommand.args.join(" ")
@@ -729,9 +798,10 @@ export function executeCommand(type: CommandType, args: CommandArg[]) : Promise<
 
 			return new Promise(resolve => {
 				if (time == "click")
-					document.addEventListener("click", ()=>resolve(), {once: true})
+					waitForClick(ALL_BUT_SETTINGS)
+						.then(() => resolve())
 				else
-					setTimeout(()=>resolve(), +time*1000)
+					setTimeout(() => resolve(), +time*1000)
 			})
 		}
 
@@ -763,10 +833,99 @@ export function executeCommand(type: CommandType, args: CommandArg[]) : Promise<
 	return 0
 }
 
-function setSpriteVariant(sprite:Sprite, variantName:string) {
-	const url = sprite.variants.get(variantName)
+function setSpritePos(sprite:Sprite, pos:number) {
+	sprite.position = pos
+	sprite.element.style.setProperty("--pos", pos.toString())
+}
+function setSpriteRot(sprite:Sprite, rot:boolean) {
+	sprite.rotated = rot
+	sprite.element.classList[rot?"add":"remove"]("rotated")
+}
+function setSpriteVar(sprite:Sprite, varName:string) {
+	sprite.variant = varName
+	const url = rootDir + sprite.variants.get(varName)
 	// sprite.element.style.backgroundImage = `url(${url})`
 	sprite.element.src = url
+}
+
+function setCookie(name:string, value:string) {
+	// document.cookie = name+"="+value
+	localStorage.setItem(name, value)
+}
+function getCookie(name:string) {
+	// const match = document.cookie.match(new RegExp(name + "=([^;]+)"))
+	// if (match)
+	// 	return match[1]
+	// return null
+	return localStorage.getItem(name)
+}
+
+export function addToSettings(sectionName:string, text:string, type:ControlType) {
+	const sections = Array.from(elements.settings.children)
+	let section: HTMLElement
+	if (!(section = sections.find(s => s.classList.contains(sectionName)) as HTMLElement)) {
+		section = crel("div", "section " + sectionName)
+			.children([
+				crel("p","label").text(sectionName)
+			]).el
+		elements.settings.appendChild(section)
+	}
+
+	let controlEl: HTMLElement
+	let description: HTMLElement
+
+	switch(type) {
+		case ControlType.button:
+			controlEl = crel("div", "button")
+				.text(text).el
+			break
+		case ControlType.check:
+			controlEl = crel("div", "check")
+				.text(text).el
+			break
+		case ControlType.radio:
+			controlEl = crel("div", "radio")
+				.text(text).el
+			break
+		case ControlType.range:
+			controlEl = crel("div", "range").el
+			description = crel("p").text(text).el
+			break
+	}
+
+	const label = crel("label").children([
+		description||null,
+		controlEl
+	]).el
+
+	section.appendChild(label)
+	return controlEl
+}
+
+function waitForClick({include, exclude}: {include?:string, exclude?:string}) {
+	return new Promise(resolve => {
+		document.onclick = e => {
+			if (e.which != 1)
+				return
+			if (exclude != null && exclude != undefined
+				&& (e.target as HTMLElement).closest(exclude) != null)
+				return
+			if (include != null && include != undefined
+				&& (e.target as HTMLElement).closest(include) == null)
+				return
+			document.onclick = null
+			document.onkeydown = null
+			resolve()
+		}
+		document.onkeydown = e => {
+			const key = e.key
+			if (![" ", "Enter", "ArrowRight"].includes(key))
+				return
+			document.onclick = null
+			document.onkeydown = null
+			resolve()
+		}
+	})
 }
 
 /** Works only on the last block which has variables!!

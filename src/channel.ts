@@ -1,14 +1,18 @@
+import { rootDir } from "./main.js";
+
 type channelOptions = {loop:boolean,fade:boolean}
 
 export class Channel {
-	private audio: HTMLAudioElement = null
-	private urls: Map<string,string>
+	audio: HTMLAudioElement = null
+	urls: Map<string,string>
 
-	private loop: boolean = true
-	private fade: boolean = true
+	loop: boolean = true
+	fade: boolean = true
+	private maxVolume: number = 1
 
-	private playlist: string[]
+	playlist: string[]
 	private soundId: number
+	private fadingIn: boolean = false
 	private fadeOutTimeout: number
 
 	constructor(urls:Map<string,string>, {loop,fade}:channelOptions) {
@@ -41,14 +45,18 @@ export class Channel {
 		this.audio = new Audio(this.getCurrentUrl())
 
 		if (fade) {
+			this.fadingIn = true
 			this.audio.volume = 0
 			this.audio.onplaying = () => {
+				let linear = 0
 				const interval = setInterval(() => {
-					const newVol = this.audio.volume + 0.034
-					if (newVol < 1)
+					linear += 0.034
+					const newVol = linear**2
+					if (linear < this.maxVolume)
 						this.audio.volume = newVol
 					else {
-						this.audio.volume = 1
+						this.fadingIn = false
+						this.audio.volume = this.maxVolume
 						clearInterval(interval)
 					}
 				}, 100)
@@ -61,7 +69,7 @@ export class Channel {
 			}
 		}
 		else {
-			this.audio.volume = 1
+			this.audio.volume = this.maxVolume
 			this.audio.onended = () => {
 				this.nextSoundId(loop)
 				this.playSound(loop, fade)
@@ -78,9 +86,11 @@ export class Channel {
 		clearTimeout(this.fadeOutTimeout)
 
 		if (fade) {
+			let linear = Math.sqrt(audio.volume)
 			const interval = setInterval(() => {
-				const newVol = audio.volume - 0.034
-				if (newVol > 0)
+				linear -= 0.034
+				const newVol = linear**2
+				if (linear > 0)
 					audio.volume = newVol
 				else {
 					audio.pause()
@@ -100,7 +110,7 @@ export class Channel {
 	}
 
 	private getCurrentUrl() {
-		return this.urls.get(this.playlist[this.soundId])
+		return rootDir + this.urls.get(this.playlist[this.soundId])
 	}
 
 	getSoundNames() {
@@ -108,5 +118,15 @@ export class Channel {
 		for (const soundName of this.urls.keys())
 			soundNames.push(soundName)
 		return soundNames
+	}
+
+	setVolume(volume) {
+		if (this.audio) {
+			if (!this.fadingIn)
+				this.audio.volume = volume
+			else if (this.audio.volume > this.maxVolume)
+				this.audio.volume = volume
+		}
+		this.maxVolume = volume
 	}
 }

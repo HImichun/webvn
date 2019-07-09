@@ -57,12 +57,19 @@ interface Block {
 	endLine: number
 
 	parent: Block | null
-	children: Set<Block>
+	children: Block[]
 
 	closesBlock: Block | null
 	closedByBlock: Block | null
 
 	data: number
+}
+
+declare const enum ControlType {
+	button,
+	range,
+	check,
+	radio
 }
 
 // chapter
@@ -72,22 +79,23 @@ interface Chapter {
 }
 
 // other
-type State = {
-	scenario: string,
-	chapter: string,
-	block: Block,
-	line: number,
-	getScenario: ()=>Scenario,
-	getChapter: ()=>Chapter,
+interface State {
+	scenario: string
+	chapter: string
+	block: Block
+	line: number
+	background: string
+	getScenario: ()=>Scenario
+	getChapter: ()=>Chapter
 	getCommand: ()=>Command
 }
-type Info = {
-	name: string,
-	shortName: string,
-	author: string,
-	version: string,
-	description: string,
-	entryPoint: string,
+interface Info {
+	name: string
+	shortName: string
+	author: string
+	version: string
+	description: string
+	entryPoint: string
 	scenarios: Set<string>
 }
 
@@ -112,6 +120,74 @@ type Sprites = Map<string, Sprite>
 interface Sprite {
 	variants: Map<string, string>
 	element: HTMLImageElement
+
+	shown: boolean
+	position: number
+	rotated: boolean
+	variant: string
 }
 
 type Images = Map<string, string>
+
+
+// SAVES
+
+/**
+ * Holds .data of current block and its ancestors.
+ * 0 is current block, len-1 is root block
+ * */
+type BlockDataStack = number[]
+interface SavedState {
+	scenario: string
+	chapter: string
+	blockDataStack: BlockDataStack
+	line: number
+	background: string
+}
+
+interface SavedChannel {
+	urls: {[name:string]:string}
+	playlist: string[]
+	playing: boolean
+	loop: boolean
+	fade: boolean
+}
+type SavedChannels = {[name:string]:SavedChannel}
+
+interface SavedSprite {
+	variants: {[name:string]:string}
+	shown: boolean
+
+	position: number
+	rotated: boolean
+	variant: string
+}
+type SavedSprites = {[name:string]:SavedSprite}
+
+type SavedCharacters = {[name:string]:Character}
+type SavedImages = {[name:string]:string}
+
+/**
+ * block is the number of ancestor away from current block.
+ * 0 = current block,
+ * 1 = parent block,
+ * 2 = grandparent block,
+ * null = global
+ */
+interface SavedVariable {
+	name: string
+	value: any
+	block: number
+}
+type SavedVariableStack = SavedVariable[]
+
+interface Save {
+	vn: string
+	rootDir: string
+	state: SavedState
+	characters: SavedCharacters
+	sprites: SavedSprites
+	images: SavedImages
+	channels: SavedChannels
+	variableStack: SavedVariableStack
+}

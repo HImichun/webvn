@@ -5,7 +5,7 @@ function makeEmptyBlock() : Block
 		startLine: null,
 		endLine: null,
 		parent: null,
-		children: new Set(),
+		children: [],
 		closesBlock: null,
 		closedByBlock: null,
 		data: 0
@@ -14,7 +14,7 @@ function makeEmptyBlock() : Block
 
 function addParentToBlock(block: Block, parent: Block) {
 	block.parent = parent
-	parent.children.add(block)
+	parent.children.push(block)
 }
 
 export function makeBlocks(chapter: Chapter) {
