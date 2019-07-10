@@ -226,12 +226,13 @@ export function executeCommand(type, args) {
         // image
         case 5 /* image */: {
             const [name, relSrc] = args;
-            return new Promise(async (resolve) => {
-                images.set(name, relSrc);
-                const preloadEl = new Image();
-                preloadEl.src = rootDir + relSrc;
-                preloadEl.onload = () => resolve();
-            });
+            // maybe won't resolve in chrome
+            // return new Promise(async resolve => {
+            images.set(name, relSrc);
+            // 	const preloadEl = new Image()
+            // 	preloadEl.src = rootDir + relSrc
+            // 	preloadEl.onload = () => resolve()
+            // })
         }
         // sprite
         case 6 /* sprite */: {
@@ -243,11 +244,12 @@ export function executeCommand(type, args) {
                 let variantMap = new Map();
                 for (const [name, relSrc] of variants.values()) {
                     variantMap.set(name, relSrc);
-                    await new Promise(r => {
-                        const preloadEl = new Image();
-                        preloadEl.src = rootDir + relSrc;
-                        preloadEl.onloadend = () => r();
-                    });
+                    // never resolves in chrome
+                    // await new Promise(r => {
+                    // 	const preloadEl = new Image()
+                    // 	preloadEl.src = rootDir + relSrc
+                    // 	preloadEl.onloadend = () => r()
+                    // })
                 }
                 const sprite = {
                     variants: variantMap,

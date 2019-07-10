@@ -43,10 +43,11 @@ abstract class StoredControlElement<T> extends ControlElement {
 		this.default = defaultValue
 		this.convert = convert
 
-		const stored = this.stored
+		const stored = getCookie(this.name)
 		if (stored !== null) {
-			this.value = stored
-			this.element.style.setProperty("--x", stored.toString())
+			const x = convert(stored)
+			this.value = x
+			this.element.style.setProperty("--x", x.toString())
 		}
 		else
 			this.set(this.default)
