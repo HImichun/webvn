@@ -2,14 +2,6 @@
 	margin: 0;
 	padding: 0;
 	box-sizing: border-box;
-	
-	  -webkit-touch-callout: none; /* iOS Safari */
-    -webkit-user-select: none; /* Safari */
-     -khtml-user-select: none; /* Konqueror HTML */
-       -moz-user-select: none; /* Firefox */
-        -ms-user-select: none; /* Internet Explorer/Edge */
-            user-select: none; /* Non-prefixed version, currently
-                                  supported by Chrome and Opera */
 /* 	transition: none !important; */
 }
 
@@ -29,6 +21,16 @@ body.hidden #settings {
 	transform: translateY(calc(-100% - 50px));
 	filter: opacity(0%) blur(5px);
 	pointer-events: none;
+}
+
+:not(.selectable) {
+	-webkit-touch-callout: none; /* iOS Safari */
+    -webkit-user-select: none; /* Safari */
+     -khtml-user-select: none; /* Konqueror HTML */
+       -moz-user-select: none; /* Firefox */
+        -ms-user-select: none; /* Internet Explorer/Edge */
+            user-select: none; /* Non-prefixed version, currently
+                                  supported by Chrome and Opera */
 }
 
 .no-transition {
@@ -153,6 +155,7 @@ body.hidden #settings {
 
 #settings {
 	position: absolute;
+	min-width: 48px;
 	padding: 8px;
 	color: white;
 	background: #2229;
@@ -235,12 +238,100 @@ body.hidden #settings {
 }
 
 
+#main-menu {
+	position: relative;
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	grid-template-rows: 1fr repeat(3, auto) 1fr;
+	grid-template-areas:
+		". ."
+		"continue continue"
+		"new-game download"
+		"load-url drag-drop"
+		". .";
+	grid-gap: 8px;
+	padding: 8px;
+	width: 100vw;
+	height: 100vh;
+	max-width: 700px;
+	margin: 0 auto;
+}
+
+#main-menu > * {
+	padding: 12px;
+	font-size: 1.2em;
+	color: #888;
+	background: white;
+	border: none;
+	border-radius: 8px;
+	box-shadow: 0 0px 3px #0004;
+	transition: .2s;
+}
+#main-menu > button {
+		min-height: 96px;
+	color: black;
+}
+#main-menu > button:hover {
+	box-shadow: 0 2px 5px #0004;
+	transform: translateY(-2px);
+}
+#main-menu > .load-url > * {
+	width: 100%;
+	padding: 12px;
+	margin: 8px 0;
+	font-size: 1em;
+	color: #888;
+	background: inherit;
+	border: none;
+	border-radius: 8px;
+	box-shadow: 0 0px 3px #0004;
+	transition: .2s;
+}
+#main-menu > .load-url > *:hover,
+#main-menu > .load-url > *:focus{
+	box-shadow: 0 2px 5px #0004;
+	transform: translateY(-2px);
+}
+
+#main-menu > .continue {
+	grid-area: continue;
+}
+
+#main-menu > .new-game {
+	grid-area: new-game;
+}
+
+#main-menu > .download {
+	grid-area: download;
+}
+
+#main-menu > .load-url {
+	grid-area: load-url;
+}
+
+#main-menu > .drag-drop {
+	grid-area: drag-drop;
+}
+
+
 @media screen and (max-width: 500px) {
 	#panel {
 		padding: 0 calc(350px - 50vw);
 	}
 	.option {
 		padding: 16px calc(350px - 50vw);
+	}
+	#main-menu {
+		grid-template-columns: 1fr;
+		grid-template-rows: 1fr repeat(5, auto) 1fr;
+		grid-template-areas:
+			"."
+			"continue"
+			"new-game"
+			"download"
+			"load-url"
+			"drag-drop"
+			".";
 	}
 }
 

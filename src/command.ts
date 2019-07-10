@@ -3,11 +3,12 @@ import * as writer from "./writer.js"
 import crel from "./crel.js";
 import { Channel } from "./channel.js";
 import { autosave } from "./save.js";
+import { addToSettings, getCookie, setCookie } from "./setup.js";
+import { RangeCE } from "./controlElement.js";
 
 const ALL_BUT_SETTINGS = {include:null, exclude:"#settings, #save"}
 
 export function makeCommand(line: string) : Command {
-
 	if (line.trim().length == 0)
 	return null
 
@@ -147,7 +148,6 @@ export function executeCommand(type: CommandType, args: CommandArg[]) : Promise<
 			] = args as string[]
 
 			elements.panel.classList.remove("hidden")
-			writer.append(what.join(" "))
 
 			return new Promise(resolve => {
 				const originalDelay = config.textDelay
@@ -155,7 +155,7 @@ export function executeCommand(type: CommandType, args: CommandArg[]) : Promise<
 				waitForClick(ALL_BUT_SETTINGS)
 					.then(() => config.textDelay = 5)
 
-				writer.write(what.join(" "))
+				writer.append(what.join(" "))
 					.then(() => {
 						config.textDelay = originalDelay
 						return waitForClick(ALL_BUT_SETTINGS)
@@ -326,27 +326,12 @@ export function executeCommand(type: CommandType, args: CommandArg[]) : Promise<
 
 			channels.set(name, channel)
 
-			const rangeEl = addToSettings("sound", name, ControlType.range)
-			const cookieVol = getCookie("channel-"+name)
-			if (cookieVol) {
-				rangeEl.style.setProperty("--x", cookieVol)
-				channel.setVolume((+cookieVol)**2)
-			}
-			else {
-				rangeEl.style.setProperty("--x", "1")
-				setCookie("channel-"+name, "1")
-			}
-			const click = (e:MouseEvent) => {
-				const volume = e.layerX / rangeEl.clientWidth
-				rangeEl.style.setProperty("--x", volume.toString())
-				channel.setVolume(volume**2)
-				setCookie("channel-"+name, volume.toString())
-			}
-			rangeEl.onclick = click
-			rangeEl.onmousemove = e => {
-				if (e.buttons & 1)
-					click(e)
-			}
+			const range = new RangeCE(
+				addToSettings("sound", name, ControlType.range),
+				"channel-"+name,
+				1
+			)
+			range.onchange(x => channel.setVolume(x**2))
 
 			break
 		}
@@ -846,60 +831,6 @@ function setSpriteVar(sprite:Sprite, varName:string) {
 	const url = rootDir + sprite.variants.get(varName)
 	// sprite.element.style.backgroundImage = `url(${url})`
 	sprite.element.src = url
-}
-
-function setCookie(name:string, value:string) {
-	// document.cookie = name+"="+value
-	localStorage.setItem(name, value)
-}
-function getCookie(name:string) {
-	// const match = document.cookie.match(new RegExp(name + "=([^;]+)"))
-	// if (match)
-	// 	return match[1]
-	// return null
-	return localStorage.getItem(name)
-}
-
-export function addToSettings(sectionName:string, text:string, type:ControlType) {
-	const sections = Array.from(elements.settings.children)
-	let section: HTMLElement
-	if (!(section = sections.find(s => s.classList.contains(sectionName)) as HTMLElement)) {
-		section = crel("div", "section " + sectionName)
-			.children([
-				crel("p","label").text(sectionName)
-			]).el
-		elements.settings.appendChild(section)
-	}
-
-	let controlEl: HTMLElement
-	let description: HTMLElement
-
-	switch(type) {
-		case ControlType.button:
-			controlEl = crel("div", "button")
-				.text(text).el
-			break
-		case ControlType.check:
-			controlEl = crel("div", "check")
-				.text(text).el
-			break
-		case ControlType.radio:
-			controlEl = crel("div", "radio")
-				.text(text).el
-			break
-		case ControlType.range:
-			controlEl = crel("div", "range").el
-			description = crel("p").text(text).el
-			break
-	}
-
-	const label = crel("label").children([
-		description||null,
-		controlEl
-	]).el
-
-	section.appendChild(label)
-	return controlEl
 }
 
 function waitForClick({include, exclude}: {include?:string, exclude?:string}) {

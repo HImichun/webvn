@@ -1,0 +1,11 @@
+{
+	"name": "Example vn",
+	"shortName": "example",
+	"author": "Himitsu",
+	"version": "0.1.0",
+	"description": "A test for VNjs",
+	"entryPoint": "main",
+	"scenarios": [
+		"main"
+	]
+}

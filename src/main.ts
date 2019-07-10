@@ -1,7 +1,7 @@
 import { makeBlocks } from "./block.js";
-import { makeCommand, executeCommand, addToSettings } from "./command.js";
+import { makeCommand, executeCommand } from "./command.js";
 import { Channel } from "./channel.js";
-import { setupSaveLoad, setupEvents } from "./setup.js";
+import { setupEvents, setupLoad, setupMenu, setupSpeed, clearSettings } from "./setup.js";
 
 export const info: Info = {
 	name: "",
@@ -13,7 +13,7 @@ export const info: Info = {
 	scenarios: new Set()
 }
 
-export let state: State = {
+export const state: State = {
 	scenario: null,
 	chapter: null,
 	block: null,
@@ -27,16 +27,16 @@ export let state: State = {
 								.commands[state.line]
 }
 
-export let config = {
+export const config = {
 	textDelay: 40
 }
 
 export let rootDir: string
 export let scenarios: Scenarios
-export let characters: Characters = new Map()
-export let sprites: Sprites = new Map()
-export let images: Images = new Map()
-export let channels: Map<string, Channel> = new Map()
+export const characters: Characters = new Map()
+export const sprites: Sprites = new Map()
+export const images: Images = new Map()
+export const channels: Map<string, Channel> = new Map()
 export const elements = {
 	scene: document.getElementById("scene"),
 	backgrounds: document.getElementById("backgrounds"),
@@ -48,25 +48,33 @@ export const elements = {
 	settings: document.getElementById("settings")
 }
 export let variableStack: Variable[] = []
+export const events = {
+	onVnStart: function(){},
+	onMainMenu: function(){}
+}
 
 export function init() {
-	setupSaveLoad()
+	setupEvents()
+	setupLoad()
+	events.onMainMenu()
 }
 
 export async function loadVn(root:string) {
-	rootDir = root
-	scenarios = await load(rootDir+"info.json")
+	unloadVn()
+	await prepareVn(root)
+
 	executeCommand(CommandType.load, [info.entryPoint])
 	startVn()
 }
 
 export async function loadSave(file?:string) {
+	unloadVn()
+
 	const save: Save = JSON.parse(
 		file? file : localStorage.getItem("autosave")
 	) as Save
 
-	rootDir = save.rootDir
-	scenarios = await load(rootDir+"info.json")
+	await prepareVn(save.rootDir)
 
 	// images
 	for (const [name, url] of Object.entries(save.images)) {
@@ -167,10 +175,79 @@ export async function loadSave(file?:string) {
 	startVn()
 }
 
-async function startVn() {
-	setupEvents()
+export function unloadVn() {
+	rootDir = "/"
+	scenarios = null
 
+	clearSettings()
+
+	// elements
+	{
+		while(elements.backgrounds.childElementCount)
+				elements.backgrounds.firstElementChild.remove()
+
+		elements.menu.classList.add("hidden")
+		while(elements.menu.childElementCount)
+			elements.menu.firstElementChild.remove()
+
+		elements.panel.classList.add("hidden")
+		elements.settings.classList.add("hidden")
+
+		elements.name.innerText = ""
+		elements.text.innerText = ""
+	}
+
+	// images
+	images.forEach((_,key) => images.delete(key))
+
+	// state
+	{
+		state.scenario = ""
+		state.chapter  = ""
+		state.line	   = 0
+		state.block = null
+		state.background = ""
+	}
+
+	// sprites
+	sprites.forEach((sprite,key) => {
+		sprite.element.remove()
+		sprites.delete(key)
+	})
+
+	// channels
+	channels.forEach((channel,key) => {
+		channel.fade = false
+		if (channel.audio)
+			channel.pause()
+		channels.delete(key)
+	})
+
+	// characters
+	characters.forEach((_,key) => characters.delete(key))
+
+	// variable stack
+	variableStack = []
+}
+
+async function prepareVn(root:string) {
+	rootDir = root
+	scenarios = await loadFiles(rootDir+"info.json")
+
+	setupMenu()
+	setupSpeed()
+}
+
+async function startVn() {
+	events.onVnStart()
+	console.log(state.getScenario())
 	while(await loop()) {}
+	endVn()
+}
+
+export function endVn() {
+	unloadVn()
+	events.onMainMenu()
 }
 
 async function loop() {
@@ -225,7 +302,7 @@ function compileChapter(text:string) : Chapter {
 	return chapter
 }
 
-async function load(path:string) {
+async function loadFiles(path:string) {
 	try {
 		const result = await fetch(path)
 		const infoFile = await result.json()

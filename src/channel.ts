@@ -50,14 +50,18 @@ export class Channel {
 			this.audio.onplaying = () => {
 				let linear = 0
 				const interval = setInterval(() => {
+					if (!this.audio) {
+						clearInterval(interval)
+						return
+					}
 					linear += 0.034
 					const newVol = linear**2
 					if (linear < this.maxVolume)
 						this.audio.volume = newVol
 					else {
+						clearInterval(interval)
 						this.fadingIn = false
 						this.audio.volume = this.maxVolume
-						clearInterval(interval)
 					}
 				}, 100)
 

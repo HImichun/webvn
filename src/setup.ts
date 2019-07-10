@@ -1,14 +1,21 @@
-import { elements, rootDir, scenarios, characters, sprites, images, channels, info, state, loadSave } from "./main.js";
-import { save } from "./save.js";
-import { addToSettings } from "./command.js";
+import { elements, loadSave, config, events, endVn } from "./main.js"
+import { save } from "./save.js"
+import crel from "./crel.js"
+import { RangeCE, ButtonCE } from "./controlElement.js";
 
-export function setupSaveLoad() {
-	const saveBtn = addToSettings("save-load", "save", ControlType.button)
-	// const loadBtn = addToSettings("save-load", "load", ControlType.button)
+export function setupMenu() {
+	new ButtonCE(
+		addToSettings("menu", "save", ControlType.button)
+	).onclick(save)
 
-	saveBtn.onclick	= save
-	// loadBtn.onclick = load
+	new ButtonCE(
+		addToSettings("menu", "exit", ControlType.button)
+	).onclick(endVn)
 
+	elements.settings.classList.remove("hidden")
+}
+
+export function setupLoad() {
 	document.ondragover = e => {
 		e.preventDefault()
 	}
@@ -21,7 +28,7 @@ export function setupSaveLoad() {
 			if (dt.files.length == 1 && dt.files[0].name.endsWith(".vns")) {
 				const file = dt.files[0]
 				fr.readAsText(file.slice(), "utf-8")
-				fr.onloadend = e => {
+				fr.onloadend = () => {
 					loadSave(fr.result as string)
 				}
 			}
@@ -83,6 +90,55 @@ export function setupEvents() {
 	}
 }
 
+export function setupSpeed() {
+	const range = new RangeCE(
+		addToSettings("Preferences", "Text speed", ControlType.range),
+		"speed",
+		.5
+	)
+	range.onchange(x => config.textDelay = -x*90 + 100)
+}
 
+export function addToSettings(sectionName: string, text: string, type: ControlType) {
+	const sections = Array.from(elements.settings.children)
 
+	let section = sections.find(s => s.classList.contains(sectionName)) as HTMLElement
+	if (!section) {
+		section = crel("div", "section " + sectionName)
+			.children([
+				crel("p", "label").text(sectionName)
+			]).el
+		elements.settings.appendChild(section)
+	}
 
+	let controlEl = crel("div").el
+	let description: HTMLElement
+	switch (type) {
+		case ControlType.button:
+			controlEl.innerText = text
+			break
+		case ControlType.range:
+			description = crel("p").text(text).el
+			break
+	}
+
+	const label = crel("label").children([
+		description || null,
+		controlEl
+	]).el
+	section.appendChild(label)
+
+	return controlEl
+}
+
+export function clearSettings() {
+	while (elements.settings.childElementCount)
+		elements.settings.firstChild.remove()
+}
+
+export function setCookie(name:string, value:string) {
+	localStorage.setItem(name, value)
+}
+export function getCookie(name:string) {
+	return localStorage.getItem(name)
+}

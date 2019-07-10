@@ -1,0 +1,19 @@
+chapter init {
+	character cat Cat #000
+
+	sprite cat [
+		normal  "images/cat.svg"
+		bigeyes "images/cat_big_eyes.svg"
+		angry   "images/cat_angry.svg"
+	]
+
+	jump start
+}
+
+chapter start {
+	show cat
+	cat "Hello."
+	variant cat bigeyes
+	extend " This is an example vn."
+	variant cat normal
+}
