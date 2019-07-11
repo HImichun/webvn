@@ -233,6 +233,7 @@ export function executeCommand(type, args) {
             // 	preloadEl.src = rootDir + relSrc
             // 	preloadEl.onload = () => resolve()
             // })
+            break;
         }
         // sprite
         case 6 /* sprite */: {
@@ -242,6 +243,7 @@ export function executeCommand(type, args) {
             element.ondragstart = e => e.preventDefault();
             return new Promise(async (resolve) => {
                 let variantMap = new Map();
+                console.log(variants);
                 for (const [name, relSrc] of variants.values()) {
                     variantMap.set(name, relSrc);
                     // never resolves in chrome
@@ -262,6 +264,7 @@ export function executeCommand(type, args) {
                 sprites.set(name, sprite);
                 resolve();
             });
+            break;
         }
         // channel
         case 7 /* channel */: {

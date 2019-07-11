@@ -266,6 +266,7 @@ export function executeCommand(type: CommandType, args: CommandArg[]) : Promise<
 			// 	preloadEl.src = rootDir + relSrc
 			// 	preloadEl.onload = () => resolve()
 			// })
+			break
 		}
 
 		// sprite
@@ -280,6 +281,7 @@ export function executeCommand(type: CommandType, args: CommandArg[]) : Promise<
 
 			return new Promise(async resolve => {
 				let variantMap: Map<string,string> = new Map()
+				console.log(variants)
 				for (const [name,relSrc] of variants.values()) {
 					variantMap.set(name, relSrc)
 
@@ -303,6 +305,7 @@ export function executeCommand(type: CommandType, args: CommandArg[]) : Promise<
 				sprites.set(name, sprite)
 				resolve()
 			})
+			break
 		}
 
 		// channel
