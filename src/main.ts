@@ -55,15 +55,15 @@ export async function loadVn(path:string) {
 	unloadVn()
 
 	// _vns/nv/
-	if (!path.startsWith("/")) {
-		path = "/" + path
+	if (path.startsWith("/")) {
+		path = path.substring(1)
 	}
 	// /vns/vn_
 	if (!path.endsWith("/")) {
 		path += "/"
 	}
 
-	await prepareVn(path)
+	await prepareVn(location.origin + location.pathname + path)
 
 	executeCommand(CommandType.load, [info.entryPoint])
 	startVn()
