@@ -1,36 +1,44 @@
 import { elements, loadSave, config, events, endVn } from "./main.js"
-import { save } from "./save.js"
+import { saveToFile, loadFromFile } from "./save.js"
 import crel from "./crel.js"
-import { RangeCE, ButtonCE } from "./controlElement.js";
+import { RangeCE, ButtonCE, FileCE } from "./controlElement.js";
 
 export function setupMenu() {
-	new ButtonCE(
-		addToSettings("menu", "save", ControlType.button)
-	).onclick(save)
+	addToSettings("menu",
+		new ButtonCE("Save")
+			.onclick(saveToFile)
+			.elementContainer
+	)
 
-	new ButtonCE(
-		addToSettings("menu", "exit", ControlType.button)
-	).onclick(endVn)
+	addToSettings("menu",
+		new FileCE("Load")
+			.onclick(loadFromFile)
+			.elementContainer
+	)
+
+	addToSettings("menu",
+		new ButtonCE("Exit")
+			.onclick(endVn)
+			.elementContainer
+	)
 
 	elements.settings.classList.remove("hidden")
 }
 
-export function setupLoad() {
+export function setupLoadDrop() {
 	document.ondragover = e => {
 		e.preventDefault()
 	}
 	document.ondrop = e => {
 		e.preventDefault()
 		const dt = e.dataTransfer
-		const fr = new FileReader()
 
 		try {
 			if (dt.files.length == 1 && dt.files[0].name.endsWith(".vns")) {
 				const file = dt.files[0]
-				fr.readAsText(file.slice(), "utf-8")
-				fr.onloadend = () => {
-					loadSave(fr.result as string)
-				}
+
+				readFileAsString(file)
+				.then(save => loadSave(save))
 			}
 		}
 		catch(err) {
@@ -38,6 +46,16 @@ export function setupLoad() {
 			console.error(err)
 		}
 	}
+}
+
+export function readFileAsString(file:File) : Promise<string> {
+	return new Promise(resolve => {
+		const fr = new FileReader()
+		fr.readAsText(file.slice(), "utf-8")
+		fr.onloadend = () => {
+			resolve(fr.result as string)
+		}
+	})
 }
 
 export function setupEvents() {
@@ -91,15 +109,12 @@ export function setupEvents() {
 }
 
 export function setupSpeed() {
-	const range = new RangeCE(
-		addToSettings("Preferences", "Text speed", ControlType.range),
-		"speed",
-		.5
-	)
+	const range = new RangeCE("speed", .5, "Text Speed")
 	range.onchange(x => config.textDelay = -x*90 + 100)
+	addToSettings("preferences", range.elementContainer)
 }
 
-export function addToSettings(sectionName: string, text: string, type: ControlType) {
+export function addToSettings(sectionName: string, element: HTMLElement) {
 	const sections = Array.from(elements.settings.children)
 
 	let section = sections.find(s => s.classList.contains(sectionName)) as HTMLElement
@@ -111,24 +126,7 @@ export function addToSettings(sectionName: string, text: string, type: ControlTy
 		elements.settings.appendChild(section)
 	}
 
-	let controlEl = crel("div").el
-	let description: HTMLElement
-	switch (type) {
-		case ControlType.button:
-			controlEl.innerText = text
-			break
-		case ControlType.range:
-			description = crel("p").text(text).el
-			break
-	}
-
-	const label = crel("label").children([
-		description || null,
-		controlEl
-	]).el
-	section.appendChild(label)
-
-	return controlEl
+	section.appendChild(element)
 }
 
 export function clearSettings() {

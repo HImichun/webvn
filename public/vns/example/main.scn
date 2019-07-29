@@ -16,4 +16,20 @@ chapter start {
 	variant cat bigeyes
 	extend " This is an example vn."
 	variant cat normal
+
+	cat "WebVns can have loops."
+	loop
+		menu
+			option "Normal"
+				variant cat "normal"
+			option "Big eyes"
+				variant cat "bigeyes"
+			option "Angry"
+				variant cat "angry"
+			option "Done"
+				break
+			end
+		end
+	end
+	cat ";3;"
 }

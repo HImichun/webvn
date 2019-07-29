@@ -1,4 +1,4 @@
-import { state, characters, images, sprites, elements, channels, rootDir, variableStack, config } from "./main.js";
+import { state, characters, images, sprites, elements, channels, vnPath, variableStack, config } from "./main.js";
 import * as writer from "./writer.js";
 import crel from "./crel.js";
 import { Channel } from "./channel.js";
@@ -279,8 +279,9 @@ export function executeCommand(type, args) {
                     undefined;
             const channel = new Channel(soundMap, { loop, fade });
             channels.set(name, channel);
-            const range = new RangeCE(addToSettings("sound", name, 1 /* range */), "channel-" + name, 1);
+            const range = new RangeCE("channel-" + name, 1, name);
             range.onchange(x => channel.setVolume(x ** 2));
+            addToSettings("sound", range.elementContainer);
             break;
         }
         // background
@@ -293,7 +294,7 @@ export function executeCommand(type, args) {
             }
             else {
                 backgroundEl.style.backgroundImage =
-                    `url(${rootDir}${images.get(name)})`;
+                    `url(${vnPath}${images.get(name)})`;
                 state.background = name;
             }
             elements.backgrounds.insertAdjacentElement("afterbegin", backgroundEl);
@@ -664,7 +665,7 @@ function setSpriteRot(sprite, rot) {
 }
 function setSpriteVar(sprite, varName) {
     sprite.variant = varName;
-    const url = rootDir + sprite.variants.get(varName);
+    const url = vnPath + sprite.variants.get(varName);
     // sprite.element.style.backgroundImage = `url(${url})`
     sprite.element.src = url;
 }

@@ -1,4 +1,4 @@
-import { rootDir } from "./main.js";
+import { vnPath } from "./main.js";
 export class Channel {
     constructor(urls, { loop, fade }) {
         this.audio = null;
@@ -90,7 +90,7 @@ export class Channel {
             this.soundId += 1;
     }
     getCurrentUrl() {
-        return rootDir + this.urls.get(this.playlist[this.soundId]);
+        return vnPath + this.urls.get(this.playlist[this.soundId]);
     }
     getSoundNames() {
         const soundNames = [];

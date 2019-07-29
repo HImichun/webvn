@@ -1,27 +1,31 @@
 import { elements, loadSave, config, endVn } from "./main.js";
-import { save } from "./save.js";
+import { saveToFile, loadFromFile } from "./save.js";
 import crel from "./crel.js";
-import { RangeCE, ButtonCE } from "./controlElement.js";
+import { RangeCE, ButtonCE, FileCE } from "./controlElement.js";
 export function setupMenu() {
-    new ButtonCE(addToSettings("menu", "save", 0 /* button */)).onclick(save);
-    new ButtonCE(addToSettings("menu", "exit", 0 /* button */)).onclick(endVn);
+    addToSettings("menu", new ButtonCE("Save")
+        .onclick(saveToFile)
+        .elementContainer);
+    addToSettings("menu", new FileCE("Load")
+        .onclick(loadFromFile)
+        .elementContainer);
+    addToSettings("menu", new ButtonCE("Exit")
+        .onclick(endVn)
+        .elementContainer);
     elements.settings.classList.remove("hidden");
 }
-export function setupLoad() {
+export function setupLoadDrop() {
     document.ondragover = e => {
         e.preventDefault();
     };
     document.ondrop = e => {
         e.preventDefault();
         const dt = e.dataTransfer;
-        const fr = new FileReader();
         try {
             if (dt.files.length == 1 && dt.files[0].name.endsWith(".vns")) {
                 const file = dt.files[0];
-                fr.readAsText(file.slice(), "utf-8");
-                fr.onloadend = () => {
-                    loadSave(fr.result);
-                };
+                readFileAsString(file)
+                    .then(save => loadSave(save));
             }
         }
         catch (err) {
@@ -29,6 +33,15 @@ export function setupLoad() {
             console.error(err);
         }
     };
+}
+export function readFileAsString(file) {
+    return new Promise(resolve => {
+        const fr = new FileReader();
+        fr.readAsText(file.slice(), "utf-8");
+        fr.onloadend = () => {
+            resolve(fr.result);
+        };
+    });
 }
 export function setupEvents() {
     // click
@@ -78,10 +91,11 @@ export function setupEvents() {
     }
 }
 export function setupSpeed() {
-    const range = new RangeCE(addToSettings("Preferences", "Text speed", 1 /* range */), "speed", .5);
+    const range = new RangeCE("speed", .5, "Text Speed");
     range.onchange(x => config.textDelay = -x * 90 + 100);
+    addToSettings("preferences", range.elementContainer);
 }
-export function addToSettings(sectionName, text, type) {
+export function addToSettings(sectionName, element) {
     const sections = Array.from(elements.settings.children);
     let section = sections.find(s => s.classList.contains(sectionName));
     if (!section) {
@@ -91,22 +105,7 @@ export function addToSettings(sectionName, text, type) {
         ]).el;
         elements.settings.appendChild(section);
     }
-    let controlEl = crel("div").el;
-    let description;
-    switch (type) {
-        case 0 /* button */:
-            controlEl.innerText = text;
-            break;
-        case 1 /* range */:
-            description = crel("p").text(text).el;
-            break;
-    }
-    const label = crel("label").children([
-        description || null,
-        controlEl
-    ]).el;
-    section.appendChild(label);
-    return controlEl;
+    section.appendChild(element);
 }
 export function clearSettings() {
     while (elements.settings.childElementCount)

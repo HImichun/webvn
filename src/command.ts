@@ -1,4 +1,4 @@
-import { state, characters, images, sprites, elements, channels, rootDir, variableStack, config } from "./main.js";
+import { state, characters, images, sprites, elements, channels, vnPath, variableStack, config } from "./main.js";
 import * as writer from "./writer.js"
 import crel from "./crel.js";
 import { Channel } from "./channel.js";
@@ -331,12 +331,9 @@ export function executeCommand(type: CommandType, args: CommandArg[]) : Promise<
 
 			channels.set(name, channel)
 
-			const range = new RangeCE(
-				addToSettings("sound", name, ControlType.range),
-				"channel-"+name,
-				1
-			)
+			const range = new RangeCE("channel-"+name, 1, name)
 			range.onchange(x => channel.setVolume(x**2))
+			addToSettings("sound", range.elementContainer)
 
 			break
 		}
@@ -356,7 +353,7 @@ export function executeCommand(type: CommandType, args: CommandArg[]) : Promise<
 			else {
 				backgroundEl.style.backgroundImage =
 					`url(${
-						rootDir
+						vnPath
 					}${
 						images.get(name)
 					})`
@@ -833,7 +830,7 @@ function setSpriteRot(sprite:Sprite, rot:boolean) {
 }
 function setSpriteVar(sprite:Sprite, varName:string) {
 	sprite.variant = varName
-	const url = rootDir + sprite.variants.get(varName)
+	const url = vnPath + sprite.variants.get(varName)
 	// sprite.element.style.backgroundImage = `url(${url})`
 	sprite.element.src = url
 }

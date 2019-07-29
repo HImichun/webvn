@@ -69,7 +69,8 @@ declare const enum ControlType {
 	button,
 	range,
 	check,
-	radio
+	radio,
+	file
 }
 
 // chapter
@@ -97,6 +98,15 @@ interface Info {
 	description: string
 	entryPoint: string
 	scenarios: Set<string>
+}
+interface InfoJSON {
+	name: string
+	shortName: string
+	author: string
+	version: string
+	description: string
+	entryPoint: string
+	scenarios: string[]
 }
 
 interface Variable {
@@ -182,8 +192,8 @@ interface SavedVariable {
 type SavedVariableStack = SavedVariable[]
 
 interface Save {
-	vn: string
-	rootDir: string
+	shortName: string
+	path: string
 	state: SavedState
 	characters: SavedCharacters
 	sprites: SavedSprites

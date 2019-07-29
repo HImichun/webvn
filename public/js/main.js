@@ -1,15 +1,7 @@
 import { makeBlocks } from "./block.js";
 import { makeCommand, executeCommand } from "./command.js";
-import { setupEvents, setupLoad, setupMenu, setupSpeed, clearSettings } from "./setup.js";
-export const info = {
-    name: "",
-    shortName: "",
-    author: "",
-    version: "",
-    description: "",
-    entryPoint: "",
-    scenarios: new Set()
-};
+import { setupEvents, setupLoadDrop, setupMenu, setupSpeed, clearSettings } from "./setup.js";
+export let info;
 export const state = {
     scenario: null,
     chapter: null,
@@ -26,7 +18,7 @@ export const state = {
 export const config = {
     textDelay: 40
 };
-export let rootDir;
+export let vnPath;
 export let scenarios;
 export const characters = new Map();
 export const sprites = new Map();
@@ -49,19 +41,27 @@ export const events = {
 };
 export function init() {
     setupEvents();
-    setupLoad();
+    setupLoadDrop();
     events.onMainMenu();
 }
-export async function loadVn(root) {
+export async function loadVn(path) {
     unloadVn();
-    await prepareVn(root);
+    // _vns/nv/
+    if (!path.startsWith("/")) {
+        path = "/" + path;
+    }
+    // /vns/vn_
+    if (!path.endsWith("/")) {
+        path += "/";
+    }
+    await prepareVn(path);
     executeCommand(26 /* load */, [info.entryPoint]);
     startVn();
 }
 export async function loadSave(file) {
     unloadVn();
     const save = JSON.parse(file ? file : localStorage.getItem("autosave"));
-    await prepareVn(save.rootDir);
+    await prepareVn(save.path);
     // images
     for (const [name, url] of Object.entries(save.images)) {
         await executeCommand(5 /* image */, [
@@ -150,7 +150,7 @@ export async function loadSave(file) {
     startVn();
 }
 export function unloadVn() {
-    rootDir = "/";
+    vnPath = null;
     scenarios = null;
     clearSettings();
     // elements
@@ -166,7 +166,8 @@ export function unloadVn() {
         elements.text.innerText = "";
     }
     // images
-    images.forEach((_, key) => images.delete(key));
+    for (const [key,] of images)
+        images.delete(key);
     // state
     {
         state.scenario = "";
@@ -176,25 +177,29 @@ export function unloadVn() {
         state.background = "";
     }
     // sprites
-    sprites.forEach((sprite, key) => {
+    for (const [key,] of sprites) {
+        const sprite = sprites.get(key);
         sprite.element.remove();
         sprites.delete(key);
-    });
+    }
     // channels
-    channels.forEach((channel, key) => {
+    for (const [key,] of channels) {
+        const channel = channels.get(key);
         channel.fade = false;
         if (channel.audio)
             channel.pause();
         channels.delete(key);
-    });
+    }
     // characters
-    characters.forEach((_, key) => characters.delete(key));
+    for (const [key,] of characters)
+        characters.delete(key);
     // variable stack
     variableStack = [];
 }
-async function prepareVn(root) {
-    rootDir = root;
-    scenarios = await loadFiles(rootDir + "info.json");
+async function prepareVn(path) {
+    vnPath = path;
+    info = await makeInfo();
+    scenarios = await makeScenarios();
     setupMenu();
     setupSpeed();
 }
@@ -220,8 +225,30 @@ async function loop() {
         return false;
     return true;
 }
+async function makeScenarios() {
+    const scenarios = new Map();
+    for (const scenarioName of info.scenarios) {
+        const path = vnPath + scenarioName + ".scn";
+        const scenarioResult = await fetch(path);
+        const scenarioText = await scenarioResult.text();
+        const scenario = compileScenario(scenarioText);
+        scenarios.set(scenarioName, scenario);
+    }
+    return scenarios;
+}
+async function makeInfo() {
+    const infoResult = await fetch(vnPath + "info.json");
+    const infoJSON = await infoResult.json();
+    const scenarios = new Set();
+    for (const scenario of infoJSON.scenarios)
+        scenarios.add(scenario);
+    return {
+        ...infoJSON,
+        scenarios
+    };
+}
 // compiler
-function compile(file) {
+function compileScenario(file) {
     const scenario = new Map();
     const regExp = /chapter (\w+)\s*{([\s\S]*?)}/g;
     let match;
@@ -249,43 +276,4 @@ function compileChapter(text) {
     });
     makeBlocks(chapter);
     return chapter;
-}
-async function loadFiles(path) {
-    try {
-        const result = await fetch(path);
-        const infoFile = await result.json();
-        const stringProps = [
-            "name",
-            "shortName",
-            "author",
-            "version",
-            "description",
-            "entryPoint"
-        ];
-        if (stringProps.every(prop => typeof infoFile[prop] == "string") &&
-            infoFile.scenarios instanceof Array &&
-            infoFile.scenarios.every(path => typeof path == "string")) {
-            stringProps.push("scenarios");
-            for (const prop of stringProps)
-                info[prop] = infoFile[prop];
-        }
-        else
-            throw "Invalid info file";
-        // info is correct now
-        const scenarios = new Map();
-        for (const path of info.scenarios) {
-            const fullPath = rootDir + `${path}.scn`;
-            const fileName = path
-                .replace(/^.*\//, "")
-                .replace(/\..*$/, "");
-            const result = await fetch(fullPath);
-            const file = await result.text();
-            const scenario = compile(file);
-            scenarios.set(fileName, scenario);
-        }
-        return scenarios;
-    }
-    catch (e) {
-        console.error("Error loading info file.", e);
-    }
 }

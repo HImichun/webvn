@@ -1,4 +1,4 @@
-import { rootDir } from "./main.js";
+import { vnPath } from "./main.js";
 
 type channelOptions = {loop:boolean,fade:boolean}
 
@@ -114,7 +114,7 @@ export class Channel {
 	}
 
 	private getCurrentUrl() {
-		return rootDir + this.urls.get(this.playlist[this.soundId])
+		return vnPath + this.urls.get(this.playlist[this.soundId])
 	}
 
 	getSoundNames() {

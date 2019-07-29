@@ -1,13 +1,31 @@
-import { info, state, characters, sprites, images, channels, rootDir, loadVn, variableStack } from "./main.js";
+import { info, state, characters, sprites, images, channels, vnPath, loadVn, variableStack, loadSave } from "./main.js";
 import { Channel } from "./channel.js";
 import crel from "./crel.js";
+import { readFileAsString } from "./setup.js";
+
+// LOAD
+
+export function loadFromFile() {
+	const input = crel("input").attrs({type:"file"}).el as HTMLInputElement
+	input.onchange = (e => {
+		const files = input.files
+		if (!files || !files.length)
+			return
+
+		const file = files[0]
+
+		readFileAsString(file)
+		.then(save => loadSave(save))
+	})
+	input.click()
+}
 
 // SAVE
 
 export function autosave() {
 	const save: Save = {
-		vn: 			info.shortName,
-		rootDir:		rootDir,
+		shortName: 			info.shortName,
+		path:			vnPath,
 		state: 			stateToObj(state),
 		characters: 	mapToObj(characters),
 		sprites: 		spritesToObj(sprites),
@@ -17,9 +35,20 @@ export function autosave() {
 	}
 	localStorage.setItem("autosave", JSON.stringify(save))
 }
-export function save() {
+export function saveToFile() {
+	let name: string
+	if (info) {
+		name = info.shortName
+	}
+	else {
+		const autosave = localStorage.getItem("autosave")
+		if (autosave) {
+			const autosaveJSON = JSON.parse(autosave) as Save
+			name = autosaveJSON.shortName
+		}
+	}
 	download(
-		`${info.name} ${Date.now()}.vns`,
+		`${name} ${Date.now()}.vns`,
 		localStorage.getItem("autosave")
 	)
 }
@@ -61,7 +90,6 @@ function varStackToObj(varStack:Variable[]) {
 	}
 	return arr
 }
-
 function spritesToObj(sprites:Map<string,Sprite>) : SavedSprites {
 	const obj: SavedSprites = {}
 	for (const [spriteName, sprite] of sprites.entries()) {
@@ -79,7 +107,6 @@ function spritesToObj(sprites:Map<string,Sprite>) : SavedSprites {
 	}
 	return obj
 }
-
 function channelsToObj(channels:Map<string,Channel>) : SavedChannels {
 	const obj: SavedChannels = {}
 	for (const [channelName, channel] of channels.entries()) {
@@ -97,7 +124,6 @@ function channelsToObj(channels:Map<string,Channel>) : SavedChannels {
 	}
 	return obj
 }
-
 function stateToObj(state:State) : SavedState {
 	const blockDataStack: BlockDataStack = []
 
@@ -120,7 +146,6 @@ function stateToObj(state:State) : SavedState {
 
 	return savedState
 }
-
 function mapToObj<T>(map:Map<string,T>) : {[name:string]:T} {
 	const obj = {}
 	for(const [key, value] of map.entries()) {
@@ -133,7 +158,6 @@ function mapToObj<T>(map:Map<string,T>) : {[name:string]:T} {
 	}
 	return obj
 }
-
 function setToString<T>(set:Set<T>) : Array<any> {
 	const arr = []
 	for(const value of set.values()) {

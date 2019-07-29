@@ -1,10 +1,24 @@
-import { info, state, characters, sprites, images, channels, rootDir, variableStack } from "./main.js";
+import { info, state, characters, sprites, images, channels, vnPath, variableStack, loadSave } from "./main.js";
 import crel from "./crel.js";
+import { readFileAsString } from "./setup.js";
+// LOAD
+export function loadFromFile() {
+    const input = crel("input").attrs({ type: "file" }).el;
+    input.onchange = (e => {
+        const files = input.files;
+        if (!files || !files.length)
+            return;
+        const file = files[0];
+        readFileAsString(file)
+            .then(save => loadSave(save));
+    });
+    input.click();
+}
 // SAVE
 export function autosave() {
     const save = {
-        vn: info.shortName,
-        rootDir: rootDir,
+        shortName: info.shortName,
+        path: vnPath,
         state: stateToObj(state),
         characters: mapToObj(characters),
         sprites: spritesToObj(sprites),
@@ -14,8 +28,19 @@ export function autosave() {
     };
     localStorage.setItem("autosave", JSON.stringify(save));
 }
-export function save() {
-    download(`${info.name} ${Date.now()}.vns`, localStorage.getItem("autosave"));
+export function saveToFile() {
+    let name;
+    if (info) {
+        name = info.shortName;
+    }
+    else {
+        const autosave = localStorage.getItem("autosave");
+        if (autosave) {
+            const autosaveJSON = JSON.parse(autosave);
+            name = autosaveJSON.shortName;
+        }
+    }
+    download(`${name} ${Date.now()}.vns`, localStorage.getItem("autosave"));
 }
 function download(fileName, content) {
     const link = crel("a")

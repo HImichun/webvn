@@ -1,7 +1,7 @@
 import { init, loadVn, loadSave, events } from "./main.js";
 import crel from "./crel.js";
 import { getCookie } from "./setup.js";
-import { save } from "./save.js";
+import { saveToFile } from "./save.js";
 let mainMenu;
 events.onMainMenu = create;
 events.onVnStart = remove;
@@ -35,9 +35,9 @@ function startNew() {
     const btn = crel("button", "new-game").text("New Game").el;
     if (saveTxt != null) {
         const save = JSON.parse(saveTxt);
-        const rootDir = save.rootDir;
+        const path = save.path;
         btn.onclick = () => {
-            loadVn(rootDir);
+            loadVn(path);
         };
     }
     else
@@ -46,13 +46,13 @@ function startNew() {
 }
 function downloadSave() {
     const btn = crel("button", "download").text("Download autosave").el;
-    btn.onclick = save;
+    btn.onclick = saveToFile;
     return btn;
 }
 function loadUrl() {
     const input = crel("input", "selectable").attrs({
         type: "text",
-        placeholder: "https://..."
+        placeholder: "vns/example"
     }).el;
     const btn = crel("button").text("load").el;
     btn.onclick = () => {

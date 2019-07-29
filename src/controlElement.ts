@@ -1,13 +1,15 @@
 import { getCookie, setCookie } from "./setup.js";
+import crel from "./crel.js";
 
 abstract class ControlElement {
-	protected element: HTMLElement
+	elementContainer: HTMLElement
+	protected elementTarget: HTMLElement
 	protected _onclick: ()=>void
 
-	constructor(element:HTMLElement, className:string) {
-		this.element = element
-		this.element.className = "control " + className
-		this.element.onclick = e => {
+	constructor(elementContainer:HTMLElement, elementTarget?:HTMLElement) {
+		this.elementContainer = elementContainer
+		this.elementTarget = elementTarget || elementContainer
+		this.elementTarget.onclick = e => {
 			if (this._onclick)
 				this._onclick()
 		}
@@ -15,26 +17,26 @@ abstract class ControlElement {
 
 	onclick(cb:()=>void) {
 		this._onclick = cb
+		return this
 	}
 }
 
 abstract class StoredControlElement<T> extends ControlElement {
 	protected name: string
 	protected value: T
-	protected element: HTMLElement
 	protected default: T
 	protected convert: (s:string)=>T
 	protected _onchange: (value:T)=>void
 
-	constructor(element:HTMLElement, name:string, defaultValue:T, className:string, convert:(s:string)=>T) {
-		super(element, className)
+	constructor(elementContainer:HTMLElement, elementTarget:HTMLElement, name:string, defaultValue:T, convert:(s:string)=>T) {
+		super(elementContainer, elementTarget)
 
-		this.element.onclick = e => {
+		this.elementTarget.onclick = e => {
 			if (this._onclick)
 				this._onclick()
 			this.change(e)
 		}
-		this.element.onmousemove = e => {
+		this.elementTarget.onmousemove = e => {
 			if (e.buttons & 1)
 				this.change(e)
 		}
@@ -47,7 +49,7 @@ abstract class StoredControlElement<T> extends ControlElement {
 		if (stored !== null) {
 			const x = convert(stored)
 			this.value = x
-			this.element.style.setProperty("--x", x.toString())
+			this.elementContainer.style.setProperty("--x", x.toString())
 		}
 		else
 			this.set(this.default)
@@ -66,32 +68,62 @@ abstract class StoredControlElement<T> extends ControlElement {
 	set(x:T) {
 		this.value = x
 		this.stored = x
-		this.element.style.setProperty("--x", x.toString())
+		this.elementContainer.style.setProperty("--x", x.toString())
 	}
 
 	onchange(cb:(value:T)=>void) {
 		this._onchange = cb
 		this._onchange(this.value)
+		return this
 	}
 
 	protected abstract change(e:MouseEvent)
 }
 
 export class ButtonCE extends ControlElement {
-	constructor(element:HTMLElement) {
-		super(element, "button")
+	constructor(text:string) {
+		const element = crel("button").text(text).el
+		super(element)
+	}
+}
+
+export class FileCE extends ControlElement {
+	protected input: HTMLInputElement
+
+	constructor(text:string) {
+		const input = crel("input", "hidden").attrs({type:"file"}).el as HTMLInputElement
+
+		const element = crel("label", "file")
+			.children([
+				crel("button").text(text),
+				input
+			])
+			.el
+
+		super(element)
+		this.input = input
+	}
+
+	onchange(cb:(any)=>void) {
+		this.input.onchange = cb
+		return this
 	}
 }
 
 export class RangeCE extends StoredControlElement<number> {
-	constructor(element:HTMLElement, name:string, defaultValue:number) {
-		super(element, name, defaultValue, "range", Number)
+	constructor(name:string, defaultValue:number, label:string="") {
+		const elementTarget = crel("div", "range").el
+		const elementContainer = crel("label").children([
+			crel("p").text(label),
+			elementTarget
+		]).el
+		super(elementContainer, elementTarget, name, defaultValue, Number)
 	}
 
 	protected change (e:MouseEvent) {
 		if (this._onclick)
 			this._onclick()
-		const x = e.layerX / this.element.clientWidth
+		const x = e.layerX / this.elementTarget.clientWidth
 		this.set(x)
 		if (this._onchange)
 			this._onchange(x)
