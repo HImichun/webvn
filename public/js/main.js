@@ -1,6 +1,6 @@
 import { makeBlocks } from "./block.js";
 import { makeCommand, executeCommand } from "./command.js";
-import { setupEvents, setupLoadDrop, setupMenu, setupSpeed, clearSettings } from "./setup.js";
+import { setupEvents, setupLoadDrop, setupMenu, setupSpeed, clearSettings, unHideUi } from "./setup.js";
 export let info;
 export const state = {
     scenario: null,
@@ -46,15 +46,18 @@ export function init() {
 }
 export async function loadVn(path) {
     unloadVn();
-    // _vns/nv/
-    if (path.startsWith("/")) {
-        path = path.substring(1);
+    if (!/https?:\/\//.test(path)) {
+        // _vns/nv/
+        if (path.startsWith("/")) {
+            path = path.substring(1);
+        }
+        path = location.origin + location.pathname + path;
     }
     // /vns/vn_
     if (!path.endsWith("/")) {
         path += "/";
     }
-    await prepareVn(location.origin + location.pathname + path);
+    await prepareVn(path);
     executeCommand(26 /* load */, [info.entryPoint]);
     startVn();
 }
@@ -202,6 +205,7 @@ async function prepareVn(path) {
     scenarios = await makeScenarios();
     setupMenu();
     setupSpeed();
+    unHideUi();
 }
 async function startVn() {
     events.onVnStart();

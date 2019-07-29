@@ -31,17 +31,15 @@ function continueSave() {
     return btn;
 }
 function startNew() {
-    const saveTxt = getCookie("autosave");
+    const saveText = getCookie("autosave");
     const btn = crel("button", "new-game").text("New Game").el;
-    if (saveTxt != null) {
-        const save = JSON.parse(saveTxt);
-        const path = save.path;
-        btn.onclick = () => {
-            loadVn(path);
-        };
+    if (saveText != null) {
+        const save = JSON.parse(saveText);
+        btn.onclick = () => loadVn(save.path);
     }
-    else
+    else {
         btn.disabled = true;
+    }
     return btn;
 }
 function downloadSave() {

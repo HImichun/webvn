@@ -38,19 +38,17 @@ function continueSave() {
 	return btn
 }
 function startNew() {
-	const saveTxt = getCookie("autosave")
+	const saveText = getCookie("autosave")
 
 	const btn = crel("button","new-game").text("New Game").el as HTMLButtonElement
 
-	if (saveTxt != null) {
-		const save: Save = JSON.parse(saveTxt)
-		const path = save.path
-		btn.onclick = () => {
-			loadVn(path)
-		}
+	if (saveText != null) {
+		const save = JSON.parse(saveText) as Save
+		btn.onclick = () => loadVn(save.path)
 	}
-	else
+	else {
 		btn.disabled = true
+	}
 
 	return btn
 }

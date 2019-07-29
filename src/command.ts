@@ -105,6 +105,7 @@ export function makeCommand(line: string) : Command {
 
 export function executeCommand(type: CommandType, args: CommandArg[]) : Promise<number>|number {
 	console.info("executing", type, args)
+	console.log(state.block)
 	switch(type)
 	{
 		// say
@@ -123,8 +124,8 @@ export function executeCommand(type: CommandType, args: CommandArg[]) : Promise<
 			elements.name.innerText = character.name
 			elements.name.style.setProperty("--color", character.color)
 
-			elements.text.style.setProperty("--prefix", character.prefix)
-			elements.text.style.setProperty("--postfix", character.postfix)
+			elements.text.setAttribute("data-prefix", character.prefix)
+			elements.text.setAttribute("data-postfix", character.postfix)
 
 			return new Promise(resolve => {
 				const originalDelay = config.textDelay
@@ -685,7 +686,7 @@ export function executeCommand(type: CommandType, args: CommandArg[]) : Promise<
 				let lastInElseChain: Block = elseifBlock
 				while (lastInElseChain.closedByBlock)
 					lastInElseChain = lastInElseChain.closedByBlock
-				state.line = lastInElseChain.endLine + 1
+				state.line = lastInElseChain.endLine
 				return 0b1
 			}
 			else {
@@ -712,7 +713,7 @@ export function executeCommand(type: CommandType, args: CommandArg[]) : Promise<
 			removeBlockVarsFromScope(ifBlock)
 
 			if (ifBlock.data == 1) {
-				state.line = elseBlock.endLine + 1
+				state.line = elseBlock.endLine
 				return 0b1
 			}
 			else

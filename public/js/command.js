@@ -93,6 +93,7 @@ export function makeCommand(line) {
 }
 export function executeCommand(type, args) {
     console.info("executing", type, args);
+    console.log(state.block);
     switch (type) {
         // say
         case 0 /* say */: {
@@ -103,8 +104,8 @@ export function executeCommand(type, args) {
             elements.panel.classList.remove("hidden");
             elements.name.innerText = character.name;
             elements.name.style.setProperty("--color", character.color);
-            elements.text.style.setProperty("--prefix", character.prefix);
-            elements.text.style.setProperty("--postfix", character.postfix);
+            elements.text.setAttribute("data-prefix", character.prefix);
+            elements.text.setAttribute("data-postfix", character.postfix);
             return new Promise(resolve => {
                 const originalDelay = config.textDelay;
                 waitForClick(ALL_BUT_SETTINGS)
@@ -544,7 +545,7 @@ export function executeCommand(type, args) {
                 let lastInElseChain = elseifBlock;
                 while (lastInElseChain.closedByBlock)
                     lastInElseChain = lastInElseChain.closedByBlock;
-                state.line = lastInElseChain.endLine + 1;
+                state.line = lastInElseChain.endLine;
                 return 0b1;
             }
             else {
@@ -565,7 +566,7 @@ export function executeCommand(type, args) {
             const elseBlock = ifBlock.closedByBlock;
             removeBlockVarsFromScope(ifBlock);
             if (ifBlock.data == 1) {
-                state.line = elseBlock.endLine + 1;
+                state.line = elseBlock.endLine;
                 return 0b1;
             }
             else

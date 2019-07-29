@@ -43,29 +43,35 @@ export function readFileAsString(file) {
         };
     });
 }
+export function hideUi() {
+    document.body.classList.add("hidden");
+}
+export function unHideUi() {
+    document.body.classList.remove("hidden");
+}
+export function toggleHideUi() {
+    document.body.classList.toggle("hidden");
+}
 export function setupEvents() {
     // click
     {
-        let isUiHidden = false;
-        const toggleHide = () => {
-            isUiHidden = !isUiHidden;
-            document.body.classList[isUiHidden ? "add" : "remove"]("hidden");
-        };
         document.addEventListener("click", e => {
-            if (e.which == 2)
-                toggleHide();
+            if (e.which == 2) {
+                toggleHideUi();
+            }
         });
         document.addEventListener("keydown", e => {
-            if (e.key == "h" || e.key == "c")
-                toggleHide();
+            if (e.key == "h" || e.key == "c") {
+                toggleHideUi();
+            }
             else if (e.key == "Escape") {
-                if (isUiHidden) {
+                if (!document.body.classList.contains("hidden")) {
                     elements.settings.animate([
                         { transform: "translateY(calc(-100% - 50px))" },
                         { transform: "translateY(calc(-100% + 100px))", offset: .7 },
                         { transform: "translateY(-100%)" }
                     ], { duration: 300, easing: "ease-out" });
-                    toggleHide();
+                    toggleHideUi();
                 }
                 else {
                     elements.settings.animate([

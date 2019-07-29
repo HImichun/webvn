@@ -1,5 +1,6 @@
 chapter init {
 	character cat Cat #000
+	character catPref Cat #F00 "🐱"
 
 	sprite cat [
 		normal  "images/cat.svg"
@@ -11,25 +12,129 @@ chapter init {
 }
 
 chapter start {
+	var v = "normal"
+	var p = "center"
+	var r = 0
+
 	show cat
 	cat "Hello."
 	variant cat bigeyes
 	extend " This is an example vn."
 	variant cat normal
 
-	cat "WebVns can have loops."
+	catPref "Characters have a name, a color, and some have prefixes and postfixes."
+
+	cat "WebVns have menus."
+	hide
+	menu
+		option "Normal"
+			variant cat "normal"
+		option "Big eyes"
+			variant cat "bigeyes"
+		option "Angry"
+			variant cat "angry"
+		end
+	end
+	wait .5
+
+	cat "And loops."
+	hide
 	loop
 		menu
 			option "Normal"
 				variant cat "normal"
+				var v = "normal"
 			option "Big eyes"
 				variant cat "bigeyes"
+				var v = "bigeyes"
 			option "Angry"
 				variant cat "angry"
+				var v = "angry"
 			option "Done"
 				break
 			end
 		end
 	end
-	cat ";3;"
+	wait .5
+
+	cat "As you just saw, character sprites can have different variants. They also can move."
+	hide
+	loop
+		menu
+			option "Left"
+				move cat left
+				var p = "left"
+			option "Center"
+				move cat center
+				var p = "center"
+			option "Right"
+				move cat right
+				var p = "right"
+			option "Done"
+				break
+			end
+		end
+	end
+	wait .5
+
+	cat "And rotate too."
+	hide
+	loop
+		menu
+			option "Left"
+				move cat rotated
+				var r = 1
+			option "Right"
+				move cat not-rotated
+				var r = 0
+			option "Done"
+				break
+			end
+		end
+	end
+	wait .5
+
+	variant cat normal
+	move cat center not-rotated
+
+	cat "Background doesn't have to be white, let's paint it with some color. And by the way, you can hide UI by pressing H."
+	hide
+	loop
+		menu
+			option "Red"
+				background color red
+			option "Green"
+				background color #0F0
+			option "Blue"
+				background color rgb(0,0,255)
+			option "Black"
+				background color black
+			option "White"
+				background color white
+			option "Done"
+				break
+			end
+		end
+	end
+	wait .5
+
+	cat "WebVn supports multiple sound channels. For example you can play music on one, and ambience sound on another."
+	
+	if $v == "bigeyes"
+		variant cat bigeyes
+	elseif $v == "angry"
+		variant cat angry
+	end
+
+	if $p == "left"
+		move cat left
+	elseif $p == "right"
+		move cat right
+	end
+
+	if $r == 1
+		move cat rotated
+	end
+	
+	cat "I don't know what music to play, so that's it. Bye."
 }

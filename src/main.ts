@@ -1,7 +1,7 @@
 import { makeBlocks } from "./block.js";
 import { makeCommand, executeCommand } from "./command.js";
 import { Channel } from "./channel.js";
-import { setupEvents, setupLoadDrop, setupMenu, setupSpeed, clearSettings } from "./setup.js";
+import { setupEvents, setupLoadDrop, setupMenu, setupSpeed, clearSettings, unHideUi } from "./setup.js";
 
 export let info: Info
 
@@ -54,16 +54,19 @@ export function init() {
 export async function loadVn(path:string) {
 	unloadVn()
 
-	// _vns/nv/
-	if (path.startsWith("/")) {
-		path = path.substring(1)
+	if (!/https?:\/\//.test(path)) {
+		// _vns/nv/
+		if (path.startsWith("/")) {
+			path = path.substring(1)
+		}
+		path = location.origin + location.pathname + path
 	}
 	// /vns/vn_
 	if (!path.endsWith("/")) {
 		path += "/"
 	}
 
-	await prepareVn(location.origin + location.pathname + path)
+	await prepareVn(path)
 
 	executeCommand(CommandType.load, [info.entryPoint])
 	startVn()
@@ -243,6 +246,8 @@ async function prepareVn(path:string) {
 
 	setupMenu()
 	setupSpeed()
+
+	unHideUi()
 }
 
 async function startVn() {
