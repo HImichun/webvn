@@ -369,9 +369,7 @@ export function executeCommand(type: CommandType, args: CommandArg[]) : Promise<
 						{filter: "opacity(100%)"},
 						{filter: "opacity(0%)"}
 					], {duration: 600})
-					.finished.then(() => {
-						oldBg.remove()
-					})
+					.onfinish = () => oldBg.remove()
 				}
 
 			break
@@ -510,7 +508,7 @@ export function executeCommand(type: CommandType, args: CommandArg[]) : Promise<
 					{filter: "opacity(100%) blur(0)"},
 					{filter: "opacity(0%) blur(5px)"}
 				], {duration:600})
-				.finished.then(() => sprite.element.remove())
+				.onfinish = () => sprite.element.remove()
 			})
 
 			return new Promise(r => setTimeout(()=>r(), 350))
@@ -528,7 +526,7 @@ export function executeCommand(type: CommandType, args: CommandArg[]) : Promise<
 					{filter: "opacity(100%) blur(0)"},
 					{filter: "opacity(0%) blur(5px)"}
 				], {duration:600})
-				.finished.then(() => sprite.element.remove())
+				.onfinish = () => sprite.element.remove()
 			})
 
 			return new Promise(r => setTimeout(()=>r(), 350))
