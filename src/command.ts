@@ -105,7 +105,6 @@ export function makeCommand(line: string) : Command {
 
 export function executeCommand(type: CommandType, args: CommandArg[]) : Promise<number>|number {
 	console.info("executing", type, args)
-	console.log(state.block)
 	switch(type)
 	{
 		// say

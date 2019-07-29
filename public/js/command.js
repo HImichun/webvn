@@ -93,7 +93,6 @@ export function makeCommand(line) {
 }
 export function executeCommand(type, args) {
     console.info("executing", type, args);
-    console.log(state.block);
     switch (type) {
         // say
         case 0 /* say */: {
