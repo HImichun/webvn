@@ -127,9 +127,10 @@ interface Character {
 }
 
 type Sprites = Map<string, Sprite>
+type SpriteVariants = Map<string, string[]>
 interface Sprite {
-	variants: Map<string, string>
-	element: HTMLImageElement
+	variants: SpriteVariants
+	element: HTMLElement
 
 	shown: boolean
 	position: number
@@ -165,7 +166,7 @@ interface SavedChannel {
 type SavedChannels = {[name:string]:SavedChannel}
 
 interface SavedSprite {
-	variants: {[name:string]:string}
+	variants: {[name:string]:string[]}
 	shown: boolean
 
 	position: number

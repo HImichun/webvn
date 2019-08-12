@@ -81,8 +81,8 @@ function spritesToObj(sprites) {
     const obj = {};
     for (const [spriteName, sprite] of sprites.entries()) {
         const variants = {};
-        for (const [varName, variant] of sprite.variants)
-            variants[varName] = variant;
+        for (const [varName, srcs] of sprite.variants)
+            variants[varName] = srcs;
         const spriteObj = {
             variants,
             shown: sprite.shown,

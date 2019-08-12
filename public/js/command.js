@@ -105,12 +105,14 @@ export function executeCommand(type, args) {
             elements.name.style.setProperty("--color", character.color);
             elements.text.setAttribute("data-prefix", character.prefix);
             elements.text.setAttribute("data-postfix", character.postfix);
+            elements.text.classList.add("hide-postfix");
             return new Promise(resolve => {
                 const originalDelay = config.textDelay;
                 waitForClick(ALL_BUT_SETTINGS)
                     .then(() => config.textDelay = 5);
                 writer.write(what.join(" "))
                     .then(() => {
+                    elements.text.classList.remove("hide-postfix");
                     config.textDelay = originalDelay;
                     return waitForClick(ALL_BUT_SETTINGS);
                 })
@@ -121,12 +123,14 @@ export function executeCommand(type, args) {
         case 1 /* extend */: {
             const [...what] = args;
             elements.panel.classList.remove("hidden");
+            elements.text.classList.add("hide-postfix");
             return new Promise(resolve => {
                 const originalDelay = config.textDelay;
                 waitForClick(ALL_BUT_SETTINGS)
                     .then(() => config.textDelay = 5);
                 writer.append(what.join(" "))
                     .then(() => {
+                    elements.text.classList.remove("hide-postfix");
                     config.textDelay = originalDelay;
                     return waitForClick(ALL_BUT_SETTINGS);
                 })
@@ -238,20 +242,14 @@ export function executeCommand(type, args) {
         // sprite
         case 6 /* sprite */: {
             const [name, variants] = args;
-            const element = new Image();
+            const element = document.createElement("div");
             element.className = "sprite";
             element.ondragstart = e => e.preventDefault();
             return new Promise(async (resolve) => {
                 let variantMap = new Map();
                 console.log(variants);
-                for (const [name, relSrc] of variants.values()) {
+                for (const [name, ...relSrc] of variants.values()) {
                     variantMap.set(name, relSrc);
-                    // never resolves in chrome
-                    // await new Promise(r => {
-                    // 	const preloadEl = new Image()
-                    // 	preloadEl.src = rootDir + relSrc
-                    // 	preloadEl.onloadend = () => r()
-                    // })
                 }
                 const sprite = {
                     variants: variantMap,
@@ -663,9 +661,11 @@ function setSpriteRot(sprite, rot) {
 }
 function setSpriteVar(sprite, varName) {
     sprite.variant = varName;
-    const url = vnPath + sprite.variants.get(varName);
-    // sprite.element.style.backgroundImage = `url(${url})`
-    sprite.element.src = url;
+    const urls = `url(${sprite.variants.get(varName)
+        .map(v => vnPath + v)
+        .reverse()
+        .join("), url(")})`;
+    sprite.element.style.backgroundImage = urls;
 }
 function waitForClick({ include, exclude }) {
     return new Promise(resolve => {

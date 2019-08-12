@@ -6,36 +6,116 @@ export function write(what: string) {
 }
 
 function clear() {
-	elements.text.innerText = ""
+	while (elements.text.firstChild)
+		elements.text.firstChild.remove()
 }
 
 export async function append(what: string) {
+	// let isEscaped = false
+
+	// for (let i = 0; i < what.length; i++) {
+	// 	const char = what.charAt(i)
+	// 	if(isEscaped) {
+	// 		switch (char) {
+	// 			case "\\":
+	// 				elements.text.append("\\")
+	// 				await wait()
+	// 				break;
+	// 			case "n":
+	// 				elements.text.append("\n")
+	// 				await wait()
+	// 				break
+	// 			case "w":
+	// 				await wait(config.textDelay*10)
+	// 		}
+	// 		isEscaped = false
+	// 	}
+	// 	else {
+	// 		if (char == "\\")
+	// 			isEscaped = true
+	// 		else if (char == "[") {
+	// 			let tag = what.substr(i+1, what.substr(i+1).indexOf("]"))
+	// 			if (tag.charAt(0) == "/") {
+	// 				tag = tag.substring(1)
+	// 				switch (tag) {
+	// 					case "i": appendTag("i", true); break
+	// 					case "b": appendTag("b", true); break
+	// 				}
+	// 			}
+	// 			else switch (tag) {
+	// 				case "i": appendTag("i"); break
+	// 				case "b": appendTag("b"); break
+	// 			}
+	// 		}
+	// 		else {
+	// 			elements.text.append(char)
+	// 			await wait()
+	// 		}
+	// 	}
+	// }
+
+	
+	what = what
+		.replace("<", "&lt;")
+		.replace(">", "&gt;")
+
 	let isEscaped = false
+	let element: HTMLElement = document.createElement("p")
+	const spans: HTMLElement[] = []
+
 	for (let i = 0; i < what.length; i++) {
 		const char = what.charAt(i)
-		if(isEscaped) {
+		if (isEscaped) {
 			switch (char) {
-				case "\\":
-					elements.text.append("\\")
-					await wait()
-					break;
 				case "n":
-					elements.text.append("\n")
-					await wait()
-					break
-				case "w":
-					await wait(config.textDelay*10)
+					element.appendChild(document.createElement("br"));
+					break;
+				case "w": 
+					const pauseSpan = document.createElement("span")
+					pauseSpan.className = "pause"
+					spans.push(pauseSpan);
+					break;
 			}
 			isEscaped = false
 		}
 		else {
-			if (char == "\\")
+			if (char == "\\") {
 				isEscaped = true
+			}
+			else if (char == "[") {
+				let tag = what.substr(i+1, what.substr(i+1).indexOf("]"))
+				if (tag.charAt(0) == "/") {
+					element = element.parentElement
+				}
+				else {
+					let el: HTMLElement
+					switch (tag) {
+						case "i": el = document.createElement("em"); break;
+						case "b": el = document.createElement("strong"); break;
+					}
+					element.appendChild(el)
+					element = el
+				}
+				i += tag.length + 1
+			}
 			else {
-				elements.text.append(char)
-				await wait()
+				const span = document.createElement("span")
+				span.className = "hidden"
+				span.innerText = char
+				element.appendChild(span)
+				spans.push(span)
 			}
 		}
+	}
+
+	elements.text.appendChild(element)
+
+	for (const s of spans) {
+		if (s.classList.contains("pause"))
+			await wait(config.textDelay*10)
+		else
+			await wait()
+		s.classList.remove("hidden")
 	}
 }
 

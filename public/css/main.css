@@ -66,11 +66,12 @@ body.hidden #settings {
 	position: absolute;
 	left: calc(100% * var(--pos));
 	bottom: 0;
-	height: 90vh;
-/* 	width: 90vh; */
+	height: 100vh;
+	width: 100vh;
 	
 	background-position: center center;
 	background-repeat: no-repeat;
+	background-size: contain;
 	
 	transform: translateX(-50%);
 	transform-origin: bottom center;
@@ -118,6 +119,18 @@ body.hidden #settings {
 }
 #text:after {
 	content: attr(data-postfix);
+}
+#text.hide-postfix:after {
+	opacity: 0
+}
+#text p {
+	display: inline;
+}
+#text span.hidden {
+	transform: none;
+	filter: none;
+	pointer-events: none;
+	opacity: 0;
 }
 
 /* Menu */

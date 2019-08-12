@@ -94,9 +94,10 @@ export async function loadSave(file) {
     }
     // sprites
     for (const [name, sprite] of Object.entries(save.sprites)) {
+        const variants = Object.entries(sprite.variants).map(([n, s]) => [n, ...s]);
         await executeCommand(6 /* sprite */, [
             name,
-            new Set(Object.entries(sprite.variants))
+            new Set(variants)
         ]);
         if (sprite.shown)
             executeCommand(9 /* show */, [
@@ -253,13 +254,20 @@ async function makeInfo() {
 }
 // compiler
 function compileScenario(file) {
-    const scenario = new Map();
-    const regExp = /chapter (\w+)\s*{([\s\S]*?)}/g;
-    let match;
-    while ((match = regExp.exec(file)) != null) {
-        const chapter = compileChapter(match[2]);
-        scenario.set(match[1], chapter);
-    }
+    // const scenario: Scenario = new Map()
+    // const regExp = /chapter (\w+)\s*{([\s\S]*?)}/g
+    // let match
+    // while((match = regExp.exec(file)) != null) {
+    // 	const chapter: Chapter = compileChapter(match[2])
+    // 	scenario.set(match[1], chapter)
+    // }
+    const chapterNames = file
+        .match(/^\s*chapter\s+(\w+)\s*$/gm)
+        .map(mmatch => mmatch.split(" ")[1]);
+    const chapterTexts = file
+        .split(/^\s*chapter\s+\w+\s*/gm)
+        .filter(c => c != "");
+    const scenario = new Map(chapterNames.map((n, i) => [n, compileChapter(chapterTexts[i])]));
     return scenario;
 }
 function compileChapter(text) {

@@ -93,9 +93,9 @@ function varStackToObj(varStack:Variable[]) {
 function spritesToObj(sprites:Map<string,Sprite>) : SavedSprites {
 	const obj: SavedSprites = {}
 	for (const [spriteName, sprite] of sprites.entries()) {
-		const variants: {[name:string]:string} = {}
-		for (const [varName, variant] of sprite.variants)
-			variants[varName] = variant
+		const variants: {[name:string]:string[]} = {}
+		for (const [varName, srcs] of sprite.variants)
+			variants[varName] = srcs
 		const spriteObj: SavedSprite = {
 			variants,
 			shown: sprite.shown,

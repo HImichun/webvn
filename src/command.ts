@@ -125,6 +125,7 @@ export function executeCommand(type: CommandType, args: CommandArg[]) : Promise<
 
 			elements.text.setAttribute("data-prefix", character.prefix)
 			elements.text.setAttribute("data-postfix", character.postfix)
+			elements.text.classList.add("hide-postfix")
 
 			return new Promise(resolve => {
 				const originalDelay = config.textDelay
@@ -134,6 +135,7 @@ export function executeCommand(type: CommandType, args: CommandArg[]) : Promise<
 
 				writer.write(what.join(" "))
 					.then(() => {
+						elements.text.classList.remove("hide-postfix")
 						config.textDelay = originalDelay
 						return waitForClick(ALL_BUT_SETTINGS)
 					})
@@ -148,6 +150,7 @@ export function executeCommand(type: CommandType, args: CommandArg[]) : Promise<
 			] = args as string[]
 
 			elements.panel.classList.remove("hidden")
+			elements.text.classList.add("hide-postfix")
 
 			return new Promise(resolve => {
 				const originalDelay = config.textDelay
@@ -157,6 +160,7 @@ export function executeCommand(type: CommandType, args: CommandArg[]) : Promise<
 
 				writer.append(what.join(" "))
 					.then(() => {
+						elements.text.classList.remove("hide-postfix")
 						config.textDelay = originalDelay
 						return waitForClick(ALL_BUT_SETTINGS)
 					})
@@ -275,22 +279,15 @@ export function executeCommand(type: CommandType, args: CommandArg[]) : Promise<
 				name, variants
 			] = args as [string, Set<string[]>]
 
-			const element = new Image()
+			const element = document.createElement("div")
 			element.className = "sprite"
 			element.ondragstart = e => e.preventDefault()
 
 			return new Promise(async resolve => {
-				let variantMap: Map<string,string> = new Map()
+				let variantMap: SpriteVariants = new Map()
 				console.log(variants)
-				for (const [name,relSrc] of variants.values()) {
+				for (const [name,...relSrc] of variants.values()) {
 					variantMap.set(name, relSrc)
-
-					// never resolves in chrome
-					// await new Promise(r => {
-					// 	const preloadEl = new Image()
-					// 	preloadEl.src = rootDir + relSrc
-					// 	preloadEl.onloadend = () => r()
-					// })
 				}
 
 				const sprite: Sprite = {
@@ -828,9 +825,13 @@ function setSpriteRot(sprite:Sprite, rot:boolean) {
 }
 function setSpriteVar(sprite:Sprite, varName:string) {
 	sprite.variant = varName
-	const url = vnPath + sprite.variants.get(varName)
-	// sprite.element.style.backgroundImage = `url(${url})`
-	sprite.element.src = url
+	const urls = `url(${
+		sprite.variants.get(varName)
+			.map(v => vnPath + v)
+			.reverse()
+			.join("), url(")
+	})`
+	sprite.element.style.backgroundImage = urls
 }
 
 function waitForClick({include, exclude}: {include?:string, exclude?:string}) {
