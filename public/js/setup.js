@@ -54,35 +54,42 @@ export function toggleHideUi() {
 }
 export function setupEvents() {
     // click
-    {
-        document.addEventListener("click", e => {
-            if (e.which == 2) {
+    document.addEventListener("click", e => {
+        if (e.which == 2) {
+            toggleHideUi();
+        }
+    });
+    // keypress
+    document.addEventListener("keydown", e => {
+        if (e.key == "h" || e.key == "c") {
+            toggleHideUi();
+        }
+        else if (e.key == "Escape") {
+            if (document.body.classList.contains("hidden")) {
+                elements.settings.animate([
+                    { transform: "translateY(calc(-100% - 50px))" },
+                    { transform: "translateY(calc(-100% + 100px))", offset: .7 },
+                    { transform: "translateY(-100%)" }
+                ], { duration: 300, easing: "ease-out" });
                 toggleHideUi();
             }
-        });
-        document.addEventListener("keydown", e => {
-            if (e.key == "h" || e.key == "c") {
-                toggleHideUi();
+            else {
+                elements.settings.animate([
+                    { transform: "translateY(-100%)" },
+                    { transform: "translateY(calc(-100% + 100px))", offset: .4 },
+                    { transform: "translateY(-100%)" }
+                ], { duration: 300, easing: "ease-out" });
             }
-            else if (e.key == "Escape") {
-                if (!document.body.classList.contains("hidden")) {
-                    elements.settings.animate([
-                        { transform: "translateY(calc(-100% - 50px))" },
-                        { transform: "translateY(calc(-100% + 100px))", offset: .7 },
-                        { transform: "translateY(-100%)" }
-                    ], { duration: 300, easing: "ease-out" });
-                    toggleHideUi();
-                }
-                else {
-                    elements.settings.animate([
-                        { transform: "translateY(-100%)" },
-                        { transform: "translateY(calc(-100% + 100px))", offset: .4 },
-                        { transform: "translateY(-100%)" }
-                    ], { duration: 300, easing: "ease-out" });
-                }
-            }
-        });
-    }
+        }
+        else if (e.key == "Control") {
+            config.fastForward = true;
+        }
+    });
+    document.addEventListener("keyup", e => {
+        if (e.key == "Control") {
+            config.fastForward = false;
+        }
+    });
     // resize
     {
         let timeout;

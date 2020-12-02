@@ -67,7 +67,7 @@ function download(fileName, content) {
 	link.remove()
 }
 
-function varStackToObj(varStack:Variable[]) {
+export function varStackToObj(varStack:Variable[]) {
 	const arr: SavedVariable[] = []
 	for (const variable of varStack) {
 		let b = null
@@ -125,6 +125,18 @@ function channelsToObj(channels:Map<string,Channel>) : SavedChannels {
 	return obj
 }
 function stateToObj(state:State) : SavedState {
+	const savedState: SavedState = {
+		callStack: state.callStack,
+		scenario: state.scenario,
+		chapter: state.chapter,
+		line: state.line,
+		background: state.background,
+		blockDataStack: getBlockDataStack()
+	}
+
+	return savedState
+}
+export function getBlockDataStack() {
 	const blockDataStack: BlockDataStack = []
 
 	let block = state.block
@@ -136,15 +148,7 @@ function stateToObj(state:State) : SavedState {
 			break
 	}
 
-	const savedState: SavedState = {
-		scenario: state.scenario,
-		chapter: state.chapter,
-		line: state.line,
-		background: state.background,
-		blockDataStack
-	}
-
-	return savedState
+	return blockDataStack
 }
 function mapToObj<T>(map:Map<string,T>) : {[name:string]:T} {
 	const obj = {}

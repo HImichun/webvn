@@ -1,6 +1,10 @@
 import { elements, config } from "./main.js";
 
 export function write(what: string) {
+	if (config.fastForward) {
+		fastForward(what)
+		return new Promise(r=>r())
+	}
 	clear()
 	return append(what)
 }
@@ -11,50 +15,6 @@ function clear() {
 }
 
 export async function append(what: string) {
-	// let isEscaped = false
-
-	// for (let i = 0; i < what.length; i++) {
-	// 	const char = what.charAt(i)
-	// 	if(isEscaped) {
-	// 		switch (char) {
-	// 			case "\\":
-	// 				elements.text.append("\\")
-	// 				await wait()
-	// 				break;
-	// 			case "n":
-	// 				elements.text.append("\n")
-	// 				await wait()
-	// 				break
-	// 			case "w":
-	// 				await wait(config.textDelay*10)
-	// 		}
-	// 		isEscaped = false
-	// 	}
-	// 	else {
-	// 		if (char == "\\")
-	// 			isEscaped = true
-	// 		else if (char == "[") {
-	// 			let tag = what.substr(i+1, what.substr(i+1).indexOf("]"))
-	// 			if (tag.charAt(0) == "/") {
-	// 				tag = tag.substring(1)
-	// 				switch (tag) {
-	// 					case "i": appendTag("i", true); break
-	// 					case "b": appendTag("b", true); break
-	// 				}
-	// 			}
-	// 			else switch (tag) {
-	// 				case "i": appendTag("i"); break
-	// 				case "b": appendTag("b"); break
-	// 			}
-	// 		}
-	// 		else {
-	// 			elements.text.append(char)
-	// 			await wait()
-	// 		}
-	// 	}
-	// }
-
-	
 	what = what
 		.replace("<", "&lt;")
 		.replace(">", "&gt;")
@@ -111,12 +71,30 @@ export async function append(what: string) {
 	elements.text.appendChild(element)
 
 	for (const s of spans) {
-		if (s.classList.contains("pause"))
+		if (config.fastForward) {
+			fastForward(what)
+		}
+		else if (s.classList.contains("pause")) {
 			await wait(config.textDelay*10)
-		else
+		}
+		else {
 			await wait()
+		}
 		s.classList.remove("hidden")
 	}
+}
+
+function fastForward(what) {
+	while (elements.text.firstChild)
+		elements.text.firstChild.remove()
+
+	const element: HTMLElement = document.createElement("p")
+	element.innerHTML = what
+		.replace("\\n", "\n")
+		.replace("\\w", "")
+		.replace("[i]", "<em>").replace("[/i]", "</em>")
+		.replace("[b]", "<strong>").replace("[/b]", "</strong>")
+	elements.text.append(element)
 }
 
 function wait(time=config.textDelay) {

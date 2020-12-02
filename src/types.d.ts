@@ -8,10 +8,12 @@ declare const enum CommandType {
 
 	character,
 	image,
+	images,
 	sprite,
 	channel,
 
 	background,
+	scene,
 	show,
 	move,
 	variant,
@@ -33,7 +35,9 @@ declare const enum CommandType {
 
 	wait,
 	load,
-	jump
+	jump,
+	call,
+	return
 }
 type CommandArg = (string|Set<string[]>)
 interface Command {
@@ -73,19 +77,29 @@ declare const enum ControlType {
 	file
 }
 
-// chapter
 interface Chapter {
 	rootBlock: Block
 	commands: Command[]
 }
 
-// other
+
+interface CallStackItem {
+	scenario: string
+	chapter: string
+	blockDataStack: BlockDataStack
+	line: number
+	localVars: SavedVariableStack
+}
+/** Holds points from which 'call' was executed. last call point is len-1 */
+type CallStack = CallStackItem[]
+
 interface State {
+	callStack: CallStack
 	scenario: string
 	chapter: string
 	block: Block
 	line: number
-	background: string
+	background: [string, string?]
 	getScenario: ()=>Scenario
 	getChapter: ()=>Chapter
 	getCommand: ()=>Command
@@ -139,6 +153,7 @@ interface Sprite {
 }
 
 type Images = Map<string, string>
+type ImageLocations = Map<string, {path:string, ext:string}>
 
 
 // SAVES
@@ -149,11 +164,12 @@ type Images = Map<string, string>
  * */
 type BlockDataStack = number[]
 interface SavedState {
+	callStack: CallStack
 	scenario: string
 	chapter: string
 	blockDataStack: BlockDataStack
 	line: number
-	background: string
+	background: [string, string?]
 }
 
 interface SavedChannel {

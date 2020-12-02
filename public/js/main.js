@@ -3,11 +3,12 @@ import { makeCommand, executeCommand } from "./command.js";
 import { setupEvents, setupLoadDrop, setupMenu, setupSpeed, clearSettings, unHideUi } from "./setup.js";
 export let info;
 export const state = {
+    callStack: [],
     scenario: null,
     chapter: null,
     block: null,
     line: 0,
-    background: "",
+    background: [""],
     getScenario: () => scenarios.get(state.scenario),
     getChapter: () => scenarios.get(state.scenario)
         .get(state.chapter),
@@ -16,13 +17,15 @@ export const state = {
         .commands[state.line]
 };
 export const config = {
-    textDelay: 40
+    textDelay: 40,
+    fastForward: false
 };
 export let vnPath;
 export let scenarios;
 export const characters = new Map();
 export const sprites = new Map();
 export const images = new Map();
+export const imageLocations = new Map();
 export const channels = new Map();
 export const elements = {
     scene: document.getElementById("scene"),
@@ -58,7 +61,7 @@ export async function loadVn(path) {
         path += "/";
     }
     await prepareVn(path);
-    executeCommand(26 /* load */, [info.entryPoint]);
+    executeCommand(28 /* load */, [info.entryPoint]);
     startVn();
 }
 export async function loadSave(file) {
@@ -73,12 +76,14 @@ export async function loadSave(file) {
     }
     // state
     {
+        state.callStack = save.state.callStack;
         state.scenario = save.state.scenario;
         state.chapter = save.state.chapter;
         state.line = save.state.line;
-        const chapter = state.getChapter();
-        let block = chapter.rootBlock;
+        // find current block and put data into it
+        let block = state.getChapter().rootBlock;
         while (block.children.length >= 1) {
+            block.data = save.state.blockDataStack.pop();
             let child = block.children.find(b => b.startLine <= state.line
                 && b.endLine > state.line);
             if (child)
@@ -87,20 +92,18 @@ export async function loadSave(file) {
                 break;
         }
         state.block = block;
-        const background = [save.state.background];
-        if (!images.has(save.state.background))
-            background.unshift("color");
-        executeCommand(8 /* background */, background);
+        const background = save.state.background;
+        executeCommand(9 /* background */, background);
     }
     // sprites
     for (const [name, sprite] of Object.entries(save.sprites)) {
         const variants = Object.entries(sprite.variants).map(([n, s]) => [n, ...s]);
-        await executeCommand(6 /* sprite */, [
+        await executeCommand(7 /* sprite */, [
             name,
             new Set(variants)
         ]);
         if (sprite.shown)
-            executeCommand(9 /* show */, [
+            executeCommand(11 /* show */, [
                 name,
                 sprite.variant,
                 sprite.rotated ? "rotated" : "not-rotated",
@@ -109,14 +112,14 @@ export async function loadSave(file) {
     }
     // channels
     for (const [name, channel] of Object.entries(save.channels)) {
-        await executeCommand(7 /* channel */, [
+        await executeCommand(8 /* channel */, [
             name,
             new Set(Object.entries(channel.urls)),
             channel.loop ? "loop" : "once",
             channel.fade ? "fade" : "no-fade"
         ]);
         if (channel.playing)
-            executeCommand(14 /* play */, [
+            executeCommand(16 /* play */, [
                 name,
                 new Set(channel.playlist.map(s => [s]))
             ]);
@@ -178,7 +181,7 @@ export function unloadVn() {
         state.chapter = "";
         state.line = 0;
         state.block = null;
-        state.background = "";
+        state.background = [""];
     }
     // sprites
     for (const [key,] of sprites) {
@@ -210,7 +213,7 @@ async function prepareVn(path) {
 }
 async function startVn() {
     events.onVnStart();
-    console.log(state.getScenario());
+    state.getScenario();
     while (await loop()) { }
     endVn();
 }
@@ -223,7 +226,6 @@ async function loop() {
     if (!command)
         return false;
     const result = await executeCommand(command.type, command.args);
-    // console.log(state)
     if (!(result & 0b1))
         state.line++;
     if (result & 0b10)
@@ -254,18 +256,12 @@ async function makeInfo() {
 }
 // compiler
 function compileScenario(file) {
-    // const scenario: Scenario = new Map()
-    // const regExp = /chapter (\w+)\s*{([\s\S]*?)}/g
-    // let match
-    // while((match = regExp.exec(file)) != null) {
-    // 	const chapter: Chapter = compileChapter(match[2])
-    // 	scenario.set(match[1], chapter)
-    // }
     const chapterNames = file
         .match(/^\s*chapter\s+(\w+)\s*$/gm)
-        .map(mmatch => mmatch.split(" ")[1]);
+        .map(match => match.split(" ")[1].trim());
     const chapterTexts = file
         .split(/^\s*chapter\s+\w+\s*/gm)
+        .map(c => c.trim())
         .filter(c => c != "");
     const scenario = new Map(chapterNames.map((n, i) => [n, compileChapter(chapterTexts[i])]));
     return scenario;

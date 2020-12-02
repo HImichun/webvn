@@ -1,8 +1,8 @@
-import { state, characters, images, sprites, elements, channels, vnPath, variableStack, config } from "./main.js";
+import { state, characters, images, sprites, elements, channels, vnPath, variableStack, config, imageLocations } from "./main.js";
 import * as writer from "./writer.js"
 import crel from "./crel.js";
 import { Channel } from "./channel.js";
-import { autosave } from "./save.js";
+import { autosave, getBlockDataStack, varStackToObj } from "./save.js";
 import { addToSettings, getCookie, setCookie } from "./setup.js";
 import { RangeCE } from "./controlElement.js";
 
@@ -262,14 +262,22 @@ export function executeCommand(type: CommandType, args: CommandArg[]) : Promise<
 				name, relSrc
 			] = args as [string, string]
 
-			// maybe won't resolve in chrome
-			// return new Promise(async resolve => {
-				images.set(name, relSrc)
+			images.set(name, relSrc)
 
-			// 	const preloadEl = new Image()
-			// 	preloadEl.src = rootDir + relSrc
-			// 	preloadEl.onload = () => resolve()
-			// })
+			break
+		}
+
+		// images
+		case CommandType.images: {
+			let [
+				name, path, ext
+			] = args as [string, string, string]
+
+			if (path.charAt(path.length-1))
+				path = path + "/"
+
+			imageLocations.set(name, {path, ext})
+
 			break
 		}
 
@@ -338,23 +346,32 @@ export function executeCommand(type: CommandType, args: CommandArg[]) : Promise<
 		// background
 		case CommandType.background: {
 			const [
-				name, colorName
+				first, second
 			] = args as [string,string?]
 
 			const backgroundEl = crel("div", "background").el
 
-			if (name == "color") {
-				backgroundEl.style.backgroundColor = colorName
-				state.background = colorName
+			if (first == "color") {
+				backgroundEl.style.backgroundColor = second
+				state.background = [first, second]
 			}
 			else {
-				backgroundEl.style.backgroundImage =
-					`url(${
-						vnPath
-					}${
-						images.get(name)
-					})`
-				state.background = name
+				let url: string
+
+				if (images.has(first)) {
+					url = images.get(first)
+					state.background = [first]
+				}
+
+				else for (const [locName, {path,ext}] of imageLocations.entries()) {
+					if (locName == first) {
+						url = path + second + ext
+						state.background = [first, second]
+						break
+					}
+				}
+
+				backgroundEl.style.backgroundImage = `url(${vnPath + url})`
 			}
 
 			elements.backgrounds.insertAdjacentElement("afterbegin", backgroundEl)
@@ -372,29 +389,59 @@ export function executeCommand(type: CommandType, args: CommandArg[]) : Promise<
 			break
 		}
 
+		case CommandType.scene: {
+			const [
+				first, second
+			] = args as [string,string?]
+
+			executeCommand(CommandType.clear, [])
+			executeCommand(CommandType.background, [first, second])
+
+			break
+		}
+
 		// show
 		case CommandType.show: {
 			const [
-				name, ...positions
+				first, ...second
 			] = args as CommandArg[]
+
+			if (first == undefined) {
+				elements.panel.classList.remove("hidden")
+				break
+			}
 
 			let subjects: Set<string[]>
 
-			if (name instanceof Set)
-				subjects = name
+			if (first instanceof Set)
+				subjects = first
 			else
-				subjects = new Set([ [name, ...positions as string[]] ])
+				subjects = new Set([ [first, ...second as string[]] ])
 
 			subjects.forEach(([name, ...positions]) => {
 				const sprite = sprites.get(name)
+
+				if (sprite.shown) {
+					executeCommand(CommandType.move, [name, ...positions])
+					return
+				}
+
 				sprite.shown = true
 				sprite.element.className = "sprite"
 
 				let p
-				if (positions.includes("left"))
+				if (positions.includes("fleft"))
+					setSpritePos(sprite, .05)
+				else if (positions.includes("left"))
 					setSpritePos(sprite, .2)
+				else if (positions.includes("cleft"))
+					setSpritePos(sprite, .35)
+				else if (positions.includes("cright"))
+					setSpritePos(sprite, .65)
 				else if (positions.includes("right"))
 					setSpritePos(sprite, .8)
+				else if (positions.includes("fright"))
+					setSpritePos(sprite, .95)
 				else if (p = positions.find(pos => !isNaN(+pos)))
 					setSpritePos(sprite, p)
 				else
@@ -419,7 +466,7 @@ export function executeCommand(type: CommandType, args: CommandArg[]) : Promise<
 				], {duration: 600})
 			})
 
-			return new Promise(r => setTimeout(()=>r(), 650))
+			return new Promise(r => setTimeout(r, 650))
 		}
 
 		// move
@@ -439,14 +486,20 @@ export function executeCommand(type: CommandType, args: CommandArg[]) : Promise<
 				const sprite = sprites.get(name)
 
 				let p
-				if (positions.includes("left"))
+				if (positions.includes("fleft"))
+					setSpritePos(sprite, .05)
+				else if (positions.includes("left"))
 					setSpritePos(sprite, .2)
-				else if (positions.includes("right"))
-					setSpritePos(sprite, .8)
-				else if (p = positions.find(pos => !isNaN(+pos)))
-					setSpritePos(sprite, p)
+				else if (positions.includes("cleft"))
+					setSpritePos(sprite, .35)
 				else if (positions.includes("center"))
 					setSpritePos(sprite, .5)
+				else if (positions.includes("cright"))
+					setSpritePos(sprite, .65)
+				else if (positions.includes("right"))
+					setSpritePos(sprite, .8)
+				else if (positions.includes("fright"))
+					setSpritePos(sprite, .95)
 
 				if (positions.includes("rotated"))
 					setSpriteRot(sprite, true)
@@ -776,39 +829,140 @@ export function executeCommand(type: CommandType, args: CommandArg[]) : Promise<
 		case CommandType.wait: {
 			const [
 				time
-			] = args as string[]
+			] = args as [string]
 
 			return new Promise(resolve => {
-				if (time == "click")
-					waitForClick(ALL_BUT_SETTINGS)
-						.then(() => resolve())
-				else
+				if (config.fastForward) {
+					resolve()
+				}
+				else if (time == "click") {
+					waitForClick(ALL_BUT_SETTINGS).then(() => resolve())
+				}
+				else {
 					setTimeout(() => resolve(), +time*1000)
+				}
 			})
 		}
 
 		// load
 		case CommandType.load: {
-			const scenario = args[0]
-			if (typeof scenario == "string") {
-				state.scenario = scenario
-				state.chapter = "init"
-				state.block = state.getChapter().rootBlock
-				state.line = 0
-			}
+			const [
+				scenario
+			] = args as [string]
+
+			state.scenario = scenario
+			state.chapter = "init"
+			state.block = state.getChapter().rootBlock
+			state.line = 0
+
 			removeBlockVarsFromScope()
+
 			return 0b1
 		}
 
 		// jump
 		case CommandType.jump: {
-			const chapter = args[0]
-			if (typeof chapter == "string") {
-				state.chapter = chapter
-				state.block = state.getChapter().rootBlock
-				state.line = 0
-			}
+			const [
+				chapter
+			] = args as [string]
+
+			state.chapter = chapter
+			state.block = state.getChapter().rootBlock
+			state.line = 0
+			
 			removeBlockVarsFromScope()
+			
+			return 0b1
+		}
+
+		// call
+		case CommandType.call: {
+			const [
+				first, second
+			] = args as [string, string]
+
+			// push current frame to callStack
+			state.callStack.push({
+				scenario: state.scenario,
+				chapter: state.chapter,
+				line: state.line,
+				blockDataStack: getBlockDataStack(),
+				localVars: varStackToObj(variableStack).filter(v => v.block!==null)
+			})
+
+			let chapter: string
+			// load call
+			if (second) {
+				state.scenario = first
+				chapter = second
+			}
+			// jump call
+			else {
+				chapter = first
+			}
+
+			state.chapter = chapter
+			state.block = state.getChapter().rootBlock
+			state.line = 0
+
+			// remove local variables
+			removeBlockVarsFromScope()
+
+			return 0b1
+		}
+
+		// return
+		case CommandType.return: {
+			const prevFrame: CallStackItem = state.callStack.pop()
+
+			state.scenario = prevFrame.scenario
+			state.chapter = prevFrame.chapter
+			state.line = prevFrame.line + 1
+
+			// set current block and put data into it and its ancestors
+			{
+				let block = state.getChapter().rootBlock
+				while (block.children.length >= 1) {
+					block.data = prevFrame.blockDataStack.pop()
+					let child = block.children.find(b =>
+						b.startLine <= state.line
+						&& b.endLine > state.line
+					)
+					if (child)
+						block = child
+					else
+						break
+				}
+				state.block = block
+			}
+
+			// variable stack
+			{
+				// remove local variables
+				removeBlockVarsFromScope()
+
+				// set local variables
+
+				const blockStack: Block[] = [state.block]
+				let block = state.block
+				while (block.parent) {
+					blockStack.push(block.parent)
+					block = block.parent
+				}
+
+				for (const svar of prevFrame.localVars) {
+					let block: Block = null
+					if (svar.block != null)
+						block = blockStack[svar.block]
+					const variable: Variable = {
+						name: svar.name,
+						block: block,
+						value: svar.value
+					}
+					variableStack.push(variable)
+				}
+			}
+
 			return 0b1
 		}
 	}
@@ -836,6 +990,10 @@ function setSpriteVar(sprite:Sprite, varName:string) {
 
 function waitForClick({include, exclude}: {include?:string, exclude?:string}) {
 	return new Promise(resolve => {
+		if (config.fastForward) {
+			resolve()
+			return
+		}
 		document.onclick = e => {
 			if (e.which != 1)
 				return
@@ -851,7 +1009,7 @@ function waitForClick({include, exclude}: {include?:string, exclude?:string}) {
 		}
 		document.onkeydown = e => {
 			const key = e.key
-			if (![" ", "Enter", "ArrowRight"].includes(key))
+			if (![" ", "Enter", "ArrowRight", "Control"].includes(key))
 				return
 			document.onclick = null
 			document.onkeydown = null
@@ -1008,9 +1166,11 @@ function typeFromString(string) : CommandType {
 		case "var":			return CommandType.var
 		case "character":	return CommandType.character
 		case "image":		return CommandType.image
+		case "images":		return CommandType.images
 		case "sprite":		return CommandType.sprite
 		case "channel":		return CommandType.channel
 		case "background":	return CommandType.background
+		case "scene":		return CommandType.scene
 		case "show":		return CommandType.show
 		case "move":		return CommandType.move
 		case "variant":		return CommandType.variant
@@ -1030,6 +1190,8 @@ function typeFromString(string) : CommandType {
 		case "wait":		return CommandType.wait
 		case "load":		return CommandType.load
 		case "jump":		return CommandType.jump
+		case "call":		return CommandType.call
+		case "return":		return CommandType.return
 		default:			return CommandType.say
 	}
 }

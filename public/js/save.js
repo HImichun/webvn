@@ -54,7 +54,7 @@ function download(fileName, content) {
     link.click();
     link.remove();
 }
-function varStackToObj(varStack) {
+export function varStackToObj(varStack) {
     const arr = [];
     for (const variable of varStack) {
         let b = null;
@@ -112,6 +112,17 @@ function channelsToObj(channels) {
     return obj;
 }
 function stateToObj(state) {
+    const savedState = {
+        callStack: state.callStack,
+        scenario: state.scenario,
+        chapter: state.chapter,
+        line: state.line,
+        background: state.background,
+        blockDataStack: getBlockDataStack()
+    };
+    return savedState;
+}
+export function getBlockDataStack() {
     const blockDataStack = [];
     let block = state.block;
     while (true) {
@@ -121,14 +132,7 @@ function stateToObj(state) {
         else
             break;
     }
-    const savedState = {
-        scenario: state.scenario,
-        chapter: state.chapter,
-        line: state.line,
-        background: state.background,
-        blockDataStack
-    };
-    return savedState;
+    return blockDataStack;
 }
 function mapToObj(map) {
     const obj = {};

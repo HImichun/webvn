@@ -6,11 +6,12 @@ import { setupEvents, setupLoadDrop, setupMenu, setupSpeed, clearSettings, unHid
 export let info: Info
 
 export const state: State = {
+	callStack: [],
 	scenario: null,
 	chapter: null,
 	block: null,
 	line: 0,
-	background: "",
+	background: [""],
 	getScenario: () => scenarios.get(state.scenario),
 	getChapter : () => scenarios.get(state.scenario)
 								.get(state.chapter),
@@ -20,7 +21,8 @@ export const state: State = {
 }
 
 export const config = {
-	textDelay: 40
+	textDelay: 40,
+	fastForward: false
 }
 
 export let vnPath: string
@@ -28,6 +30,7 @@ export let scenarios: Scenarios
 export const characters: Characters = new Map()
 export const sprites: Sprites = new Map()
 export const images: Images = new Map()
+export const imageLocations: ImageLocations = new Map()
 export const channels: Map<string, Channel> = new Map()
 export const elements = {
 	scene: document.getElementById("scene"),
@@ -90,13 +93,15 @@ export async function loadSave(file?:string) {
 
 	// state
 	{
+		state.callStack= save.state.callStack
 		state.scenario = save.state.scenario
 		state.chapter  = save.state.chapter
 		state.line	   = save.state.line
 
-		const chapter = state.getChapter()
-		let block = chapter.rootBlock
+		// find current block and put data into it
+		let block = state.getChapter().rootBlock
 		while (block.children.length >= 1) {
+			block.data = save.state.blockDataStack.pop()
 			let child = block.children.find(b =>
 				b.startLine <= state.line
 				&& b.endLine > state.line
@@ -108,9 +113,7 @@ export async function loadSave(file?:string) {
 		}
 		state.block = block
 
-		const background = [save.state.background]
-		if (!images.has(save.state.background))
-			background.unshift("color")
+		const background = save.state.background
 		executeCommand(CommandType.background, background)
 	}
 
@@ -213,7 +216,7 @@ export function unloadVn() {
 		state.chapter  = ""
 		state.line	   = 0
 		state.block = null
-		state.background = ""
+		state.background = [""]
 	}
 
 	// sprites
@@ -253,7 +256,7 @@ async function prepareVn(path:string) {
 
 async function startVn() {
 	events.onVnStart()
-	console.log(state.getScenario())
+	state.getScenario()
 	while(await loop()) {}
 	endVn()
 }
@@ -269,7 +272,6 @@ async function loop() {
 		return false
 	const result = await executeCommand(command.type, command.args)
 
-	// console.log(state)
 	if (!(result & 0b1))
 		state.line++
 	if (result & 0b10)
@@ -311,20 +313,13 @@ async function makeInfo() : Promise<Info> {
 // compiler
 
 function compileScenario(file:string) : Scenario {
-	// const scenario: Scenario = new Map()
-	// const regExp = /chapter (\w+)\s*{([\s\S]*?)}/g
-	// let match
-	// while((match = regExp.exec(file)) != null) {
-	// 	const chapter: Chapter = compileChapter(match[2])
-	// 	scenario.set(match[1], chapter)
-	// }
-
 	const chapterNames = file
 		.match(/^\s*chapter\s+(\w+)\s*$/gm)
-		.map(mmatch => mmatch.split(" ")[1])
+		.map(match => match.split(" ")[1].trim())
 
 	const chapterTexts = file
 		.split(/^\s*chapter\s+\w+\s*/gm)
+		.map(c => c.trim())
 		.filter(c => c != "")
 
 	const scenario: Scenario = new Map(

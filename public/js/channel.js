@@ -64,6 +64,10 @@ export class Channel {
         this.audio.play();
     }
     pause(fade = this.fade) {
+        if (!this.audio) {
+            console.info("channel is already paused");
+            return;
+        }
         const audio = this.audio;
         this.audio = null;
         clearTimeout(this.fadeOutTimeout);

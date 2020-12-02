@@ -1,8 +1,8 @@
-import { state, characters, images, sprites, elements, channels, vnPath, variableStack, config } from "./main.js";
+import { state, characters, images, sprites, elements, channels, vnPath, variableStack, config, imageLocations } from "./main.js";
 import * as writer from "./writer.js";
 import crel from "./crel.js";
 import { Channel } from "./channel.js";
-import { autosave } from "./save.js";
+import { autosave, getBlockDataStack, varStackToObj } from "./save.js";
 import { addToSettings } from "./setup.js";
 import { RangeCE } from "./controlElement.js";
 const ALL_BUT_SETTINGS = { include: null, exclude: "#settings, #save" };
@@ -230,17 +230,19 @@ export function executeCommand(type, args) {
         // image
         case 5 /* image */: {
             const [name, relSrc] = args;
-            // maybe won't resolve in chrome
-            // return new Promise(async resolve => {
             images.set(name, relSrc);
-            // 	const preloadEl = new Image()
-            // 	preloadEl.src = rootDir + relSrc
-            // 	preloadEl.onload = () => resolve()
-            // })
+            break;
+        }
+        // images
+        case 6 /* images */: {
+            let [name, path, ext] = args;
+            if (path.charAt(path.length - 1))
+                path = path + "/";
+            imageLocations.set(name, { path, ext });
             break;
         }
         // sprite
-        case 6 /* sprite */: {
+        case 7 /* sprite */: {
             const [name, variants] = args;
             const element = document.createElement("div");
             element.className = "sprite";
@@ -265,7 +267,7 @@ export function executeCommand(type, args) {
             break;
         }
         // channel
-        case 7 /* channel */: {
+        case 8 /* channel */: {
             const [name, sounds, ...options] = args;
             let soundMap = new Map();
             sounds.forEach(sound => soundMap.set(sound[0], sound[1]));
@@ -283,17 +285,28 @@ export function executeCommand(type, args) {
             break;
         }
         // background
-        case 8 /* background */: {
-            const [name, colorName] = args;
+        case 9 /* background */: {
+            const [first, second] = args;
             const backgroundEl = crel("div", "background").el;
-            if (name == "color") {
-                backgroundEl.style.backgroundColor = colorName;
-                state.background = colorName;
+            if (first == "color") {
+                backgroundEl.style.backgroundColor = second;
+                state.background = [first, second];
             }
             else {
-                backgroundEl.style.backgroundImage =
-                    `url(${vnPath}${images.get(name)})`;
-                state.background = name;
+                let url;
+                if (images.has(first)) {
+                    url = images.get(first);
+                    state.background = [first];
+                }
+                else
+                    for (const [locName, { path, ext }] of imageLocations.entries()) {
+                        if (locName == first) {
+                            url = path + second + ext;
+                            state.background = [first, second];
+                            break;
+                        }
+                    }
+                backgroundEl.style.backgroundImage = `url(${vnPath + url})`;
             }
             elements.backgrounds.insertAdjacentElement("afterbegin", backgroundEl);
             for (const oldBg of Array.from(elements.backgrounds.children))
@@ -307,23 +320,45 @@ export function executeCommand(type, args) {
                 }
             break;
         }
+        case 10 /* scene */: {
+            const [first, second] = args;
+            executeCommand(15 /* clear */, []);
+            executeCommand(9 /* background */, [first, second]);
+            break;
+        }
         // show
-        case 9 /* show */: {
-            const [name, ...positions] = args;
+        case 11 /* show */: {
+            const [first, ...second] = args;
+            if (first == undefined) {
+                elements.panel.classList.remove("hidden");
+                break;
+            }
             let subjects;
-            if (name instanceof Set)
-                subjects = name;
+            if (first instanceof Set)
+                subjects = first;
             else
-                subjects = new Set([[name, ...positions]]);
+                subjects = new Set([[first, ...second]]);
             subjects.forEach(([name, ...positions]) => {
                 const sprite = sprites.get(name);
+                if (sprite.shown) {
+                    executeCommand(12 /* move */, [name, ...positions]);
+                    return;
+                }
                 sprite.shown = true;
                 sprite.element.className = "sprite";
                 let p;
-                if (positions.includes("left"))
+                if (positions.includes("fleft"))
+                    setSpritePos(sprite, .05);
+                else if (positions.includes("left"))
                     setSpritePos(sprite, .2);
+                else if (positions.includes("cleft"))
+                    setSpritePos(sprite, .35);
+                else if (positions.includes("cright"))
+                    setSpritePos(sprite, .65);
                 else if (positions.includes("right"))
                     setSpritePos(sprite, .8);
+                else if (positions.includes("fright"))
+                    setSpritePos(sprite, .95);
                 else if (p = positions.find(pos => !isNaN(+pos)))
                     setSpritePos(sprite, p);
                 else
@@ -344,10 +379,10 @@ export function executeCommand(type, args) {
                     { filter: "opacity(100%) blur(0)" }
                 ], { duration: 600 });
             });
-            return new Promise(r => setTimeout(() => r(), 650));
+            return new Promise(r => setTimeout(r, 650));
         }
         // move
-        case 10 /* move */: {
+        case 12 /* move */: {
             const [name, ...positions] = args;
             let subjects;
             if (name instanceof Set)
@@ -357,14 +392,20 @@ export function executeCommand(type, args) {
             subjects.forEach(([name, ...positions]) => {
                 const sprite = sprites.get(name);
                 let p;
-                if (positions.includes("left"))
+                if (positions.includes("fleft"))
+                    setSpritePos(sprite, .05);
+                else if (positions.includes("left"))
                     setSpritePos(sprite, .2);
-                else if (positions.includes("right"))
-                    setSpritePos(sprite, .8);
-                else if (p = positions.find(pos => !isNaN(+pos)))
-                    setSpritePos(sprite, p);
+                else if (positions.includes("cleft"))
+                    setSpritePos(sprite, .35);
                 else if (positions.includes("center"))
                     setSpritePos(sprite, .5);
+                else if (positions.includes("cright"))
+                    setSpritePos(sprite, .65);
+                else if (positions.includes("right"))
+                    setSpritePos(sprite, .8);
+                else if (positions.includes("fright"))
+                    setSpritePos(sprite, .95);
                 if (positions.includes("rotated"))
                     setSpriteRot(sprite, true);
                 else if (positions.includes("not-rotated"))
@@ -379,7 +420,7 @@ export function executeCommand(type, args) {
             return new Promise(r => setTimeout(() => r(), 650));
         }
         // variant
-        case 11 /* variant */: {
+        case 13 /* variant */: {
             const [name, variant] = args;
             let subjects;
             if (name instanceof Set)
@@ -393,7 +434,7 @@ export function executeCommand(type, args) {
             return new Promise(r => setTimeout(() => r(), 150));
         }
         // hide
-        case 12 /* hide */: {
+        case 14 /* hide */: {
             const [...names] = args;
             if (names.length == 0) {
                 elements.panel.classList.add("hidden");
@@ -411,7 +452,7 @@ export function executeCommand(type, args) {
             return new Promise(r => setTimeout(() => r(), 350));
         }
         // clear
-        case 13 /* clear */: {
+        case 15 /* clear */: {
             sprites.forEach(sprite => {
                 if (!sprite.shown)
                     return;
@@ -425,7 +466,7 @@ export function executeCommand(type, args) {
             return new Promise(r => setTimeout(() => r(), 350));
         }
         // play
-        case 14 /* play */: {
+        case 16 /* play */: {
             let [channelName, sound, ...options] = args;
             const channel = channels.get(channelName);
             if (typeof sound == "string" && ["loop", "fade", "once", "no-fade"].includes(sound)) {
@@ -449,7 +490,7 @@ export function executeCommand(type, args) {
             break;
         }
         // pause
-        case 15 /* pause */: {
+        case 17 /* pause */: {
             const [...channelNames] = args;
             channelNames.forEach(channelName => {
                 const channel = channels.get(channelName);
@@ -458,7 +499,7 @@ export function executeCommand(type, args) {
             break;
         }
         // menu
-        case 16 /* menu */: {
+        case 18 /* menu */: {
             while (elements.menu.lastElementChild)
                 elements.menu.lastElementChild.remove();
             let menuBlock = state.block;
@@ -505,7 +546,7 @@ export function executeCommand(type, args) {
             });
         }
         // option
-        case 17 /* option */: {
+        case 19 /* option */: {
             const menuBlock = state.block.parent;
             removeBlockVarsFromScope(state.block);
             removeBlockVarsFromScope(menuBlock);
@@ -514,7 +555,7 @@ export function executeCommand(type, args) {
             return 0b1;
         }
         // if
-        case 18 /* if */: {
+        case 20 /* if */: {
             const expression = args;
             const result = evaluate(expression.join("")) == true;
             let ifBlock;
@@ -532,7 +573,7 @@ export function executeCommand(type, args) {
             break;
         }
         // elseif
-        case 19 /* elseif */: {
+        case 21 /* elseif */: {
             const ifBlock = state.block;
             const elseifBlock = ifBlock.closedByBlock;
             removeBlockVarsFromScope(ifBlock);
@@ -556,7 +597,7 @@ export function executeCommand(type, args) {
             break;
         }
         // else
-        case 20 /* else */: {
+        case 22 /* else */: {
             const ifBlock = state.block;
             const elseBlock = ifBlock.closedByBlock;
             removeBlockVarsFromScope(ifBlock);
@@ -569,7 +610,7 @@ export function executeCommand(type, args) {
             break;
         }
         // loop
-        case 21 /* loop */: {
+        case 23 /* loop */: {
             let loopBlock;
             for (const childBlock of state.block.children)
                 if (childBlock.startLine == state.line) {
@@ -580,7 +621,7 @@ export function executeCommand(type, args) {
             break;
         }
         // break
-        case 23 /* break */: {
+        case 25 /* break */: {
             let loopBlock = state.block;
             while (loopBlock.type != 6 /* loop */) {
                 removeBlockVarsFromScope(loopBlock);
@@ -592,7 +633,7 @@ export function executeCommand(type, args) {
             return 0b1;
         }
         // end
-        case 24 /* end */: {
+        case 26 /* end */: {
             const block = state.block;
             if (block.type != 6 /* loop */) {
                 removeBlockVarsFromScope(block);
@@ -603,7 +644,7 @@ export function executeCommand(type, args) {
         } //
         //
         // continue
-        case 22 /* continue */: {
+        case 24 /* continue */: {
             let loopBlock = state.block;
             while (loopBlock.type != 6 /* loop */) {
                 removeBlockVarsFromScope(loopBlock);
@@ -615,37 +656,110 @@ export function executeCommand(type, args) {
             return 0b1;
         }
         // wait
-        case 25 /* wait */: {
+        case 27 /* wait */: {
             const [time] = args;
             return new Promise(resolve => {
-                if (time == "click")
-                    waitForClick(ALL_BUT_SETTINGS)
-                        .then(() => resolve());
-                else
+                if (config.fastForward) {
+                    resolve();
+                }
+                else if (time == "click") {
+                    waitForClick(ALL_BUT_SETTINGS).then(() => resolve());
+                }
+                else {
                     setTimeout(() => resolve(), +time * 1000);
+                }
             });
         }
         // load
-        case 26 /* load */: {
-            const scenario = args[0];
-            if (typeof scenario == "string") {
-                state.scenario = scenario;
-                state.chapter = "init";
-                state.block = state.getChapter().rootBlock;
-                state.line = 0;
-            }
+        case 28 /* load */: {
+            const [scenario] = args;
+            state.scenario = scenario;
+            state.chapter = "init";
+            state.block = state.getChapter().rootBlock;
+            state.line = 0;
             removeBlockVarsFromScope();
             return 0b1;
         }
         // jump
-        case 27 /* jump */: {
-            const chapter = args[0];
-            if (typeof chapter == "string") {
-                state.chapter = chapter;
-                state.block = state.getChapter().rootBlock;
-                state.line = 0;
-            }
+        case 29 /* jump */: {
+            const [chapter] = args;
+            state.chapter = chapter;
+            state.block = state.getChapter().rootBlock;
+            state.line = 0;
             removeBlockVarsFromScope();
+            return 0b1;
+        }
+        // call
+        case 30 /* call */: {
+            const [first, second] = args;
+            // push current frame to callStack
+            state.callStack.push({
+                scenario: state.scenario,
+                chapter: state.chapter,
+                line: state.line,
+                blockDataStack: getBlockDataStack(),
+                localVars: varStackToObj(variableStack).filter(v => v.block !== null)
+            });
+            let chapter;
+            // load call
+            if (second) {
+                state.scenario = first;
+                chapter = second;
+            }
+            // jump call
+            else {
+                chapter = first;
+            }
+            state.chapter = chapter;
+            state.block = state.getChapter().rootBlock;
+            state.line = 0;
+            // remove local variables
+            removeBlockVarsFromScope();
+            return 0b1;
+        }
+        // return
+        case 31 /* return */: {
+            const prevFrame = state.callStack.pop();
+            state.scenario = prevFrame.scenario;
+            state.chapter = prevFrame.chapter;
+            state.line = prevFrame.line + 1;
+            // set current block and put data into it and its ancestors
+            {
+                let block = state.getChapter().rootBlock;
+                while (block.children.length >= 1) {
+                    block.data = prevFrame.blockDataStack.pop();
+                    let child = block.children.find(b => b.startLine <= state.line
+                        && b.endLine > state.line);
+                    if (child)
+                        block = child;
+                    else
+                        break;
+                }
+                state.block = block;
+            }
+            // variable stack
+            {
+                // remove local variables
+                removeBlockVarsFromScope();
+                // set local variables
+                const blockStack = [state.block];
+                let block = state.block;
+                while (block.parent) {
+                    blockStack.push(block.parent);
+                    block = block.parent;
+                }
+                for (const svar of prevFrame.localVars) {
+                    let block = null;
+                    if (svar.block != null)
+                        block = blockStack[svar.block];
+                    const variable = {
+                        name: svar.name,
+                        block: block,
+                        value: svar.value
+                    };
+                    variableStack.push(variable);
+                }
+            }
             return 0b1;
         }
     }
@@ -669,6 +783,10 @@ function setSpriteVar(sprite, varName) {
 }
 function waitForClick({ include, exclude }) {
     return new Promise(resolve => {
+        if (config.fastForward) {
+            resolve();
+            return;
+        }
         document.onclick = e => {
             if (e.which != 1)
                 return;
@@ -684,7 +802,7 @@ function waitForClick({ include, exclude }) {
         };
         document.onkeydown = e => {
             const key = e.key;
-            if (![" ", "Enter", "ArrowRight"].includes(key))
+            if (![" ", "Enter", "ArrowRight", "Control"].includes(key))
                 return;
             document.onclick = null;
             document.onkeydown = null;
@@ -823,28 +941,32 @@ function typeFromString(string) {
         case "var": return 3 /* var */;
         case "character": return 4 /* character */;
         case "image": return 5 /* image */;
-        case "sprite": return 6 /* sprite */;
-        case "channel": return 7 /* channel */;
-        case "background": return 8 /* background */;
-        case "show": return 9 /* show */;
-        case "move": return 10 /* move */;
-        case "variant": return 11 /* variant */;
-        case "hide": return 12 /* hide */;
-        case "clear": return 13 /* clear */;
-        case "play": return 14 /* play */;
-        case "pause": return 15 /* pause */;
-        case "menu": return 16 /* menu */;
-        case "option": return 17 /* option */;
-        case "if": return 18 /* if */;
-        case "elseif": return 19 /* elseif */;
-        case "else": return 20 /* else */;
-        case "loop": return 21 /* loop */;
-        case "continue": return 22 /* continue */;
-        case "break": return 23 /* break */;
-        case "end": return 24 /* end */;
-        case "wait": return 25 /* wait */;
-        case "load": return 26 /* load */;
-        case "jump": return 27 /* jump */;
+        case "images": return 6 /* images */;
+        case "sprite": return 7 /* sprite */;
+        case "channel": return 8 /* channel */;
+        case "background": return 9 /* background */;
+        case "scene": return 10 /* scene */;
+        case "show": return 11 /* show */;
+        case "move": return 12 /* move */;
+        case "variant": return 13 /* variant */;
+        case "hide": return 14 /* hide */;
+        case "clear": return 15 /* clear */;
+        case "play": return 16 /* play */;
+        case "pause": return 17 /* pause */;
+        case "menu": return 18 /* menu */;
+        case "option": return 19 /* option */;
+        case "if": return 20 /* if */;
+        case "elseif": return 21 /* elseif */;
+        case "else": return 22 /* else */;
+        case "loop": return 23 /* loop */;
+        case "continue": return 24 /* continue */;
+        case "break": return 25 /* break */;
+        case "end": return 26 /* end */;
+        case "wait": return 27 /* wait */;
+        case "load": return 28 /* load */;
+        case "jump": return 29 /* jump */;
+        case "call": return 30 /* call */;
+        case "return": return 31 /* return */;
         default: return 0 /* say */;
     }
 }

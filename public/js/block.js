@@ -34,33 +34,33 @@ export function makeBlocks(chapter) {
         block.startLine = i;
         let blockType;
         switch (commandType) {
-            case 16 /* menu */:
+            case 18 /* menu */:
                 blockType = 1 /* menu */;
                 break;
-            case 17 /* option */:
+            case 19 /* option */:
                 blockType = 2 /* option */;
                 if (lastBlock().type == 2 /* option */)
                     closeLastBlock(i, block);
                 break;
-            case 18 /* if */:
+            case 20 /* if */:
                 blockType = 3 /* if */;
                 break;
-            case 19 /* elseif */:
+            case 21 /* elseif */:
                 blockType = 4 /* elseif */;
                 if (lastBlock().type == 3 /* if */
                     || lastBlock().type == 4 /* elseif */)
                     closeLastBlock(i, block);
                 break;
-            case 20 /* else */:
+            case 22 /* else */:
                 blockType = 5 /* else */;
                 if (lastBlock().type == 3 /* if */
                     || lastBlock().type == 4 /* elseif */)
                     closeLastBlock(i, block);
                 break;
-            case 21 /* loop */:
+            case 23 /* loop */:
                 blockType = 6 /* loop */;
                 break;
-            case 24 /* end */:
+            case 26 /* end */:
                 closeLastBlock(i);
             default:
                 continue;
